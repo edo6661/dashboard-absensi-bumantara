@@ -1,4 +1,7 @@
-tolong buat web nya berwarna tapi jangan bikin rusak mata, jangan hanya hitam putih saja.
+tolong pagination nya jadi pakai nomor.
+terus juga tolong, ini export excel nya tidak semua data sesuai dengan filter, terus juga nik di export excel nya gini value nya:
+3.20101E+15
+terus juga export pdf nya tidak benar, jelek, masa ada search dan scroll nya.
 <file path="package.json">
 {
   "name": "bumantara-absensi",
@@ -95,18 +98,23 @@ export default App;
 </file>
 
 <file path="src/components/layouts/RootLayout.tsx">
+// src/components/layouts/RootLayout.tsx
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../Sidebar';
+import Navbar from '../Navbar';
 
 const RootLayout = () => {
   return (
     <div className="flex min-h-screen bg-[var(--theme-background)]">
       <Sidebar />
-      <main className="flex-1 overflow-x-hidden">
-        <div className="p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
-          <Outlet />
-        </div>
-      </main>
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <Navbar />
+        <main className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 };
@@ -115,13 +123,31 @@ export default RootLayout;
 </file>
 
 <file path="src/components/Navbar.tsx">
-const Navbar = () => {
-  return (
-    <div>Navbar</div>
-  )
-}
+// src/components/Navbar.tsx
+import { useLocation } from 'react-router-dom';
+import { Bell, ChevronDown } from 'lucide-react';
 
-export default Navbar
+const Navbar = () => {
+  const location = useLocation();
+
+  const getPageTitle = () => {
+    if (location.pathname === '/') return 'Dashboard';
+    if (location.pathname.includes('/attendance/recap')) return 'Rekap Absensi';
+    return 'Bumantara ERP';
+  };
+
+  return (
+    <header className="h-[76px] px-8 flex items-center justify-between bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-sm/50">
+      <div className="flex items-center gap-4">
+        <h1 className="text-xl font-black text-slate-800 tracking-tight">
+          {getPageTitle()}
+        </h1>
+      </div>
+    </header>
+  );
+};
+
+export default Navbar;
 </file>
 
 <file path="src/components/shared/CurrencyInput.tsx">
@@ -253,36 +279,38 @@ const DataTable = ({
   };
 
   return (
-    <div className="bg-white rounded-[24px] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)] border border-zinc-100 overflow-hidden flex flex-col transition-all duration-300">
-      <div className="p-6 md:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 bg-white border-b border-zinc-100">
+    <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden flex flex-col transition-all duration-300">
+
+      {/* Header Tabel */}
+      <div className="p-6 md:px-8 md:py-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 border-b border-slate-100">
         <div>
-          <div className="flex items-center gap-3 mb-1.5">
-            <h2 className="text-xl font-bold text-zinc-900 tracking-tight">{title}</h2>
+          <div className="flex items-center gap-3 mb-1">
+            <h2 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h2>
             {!serverSide && (
-              <span className="px-2.5 py-1 bg-zinc-50 text-zinc-500 text-[10px] font-bold uppercase tracking-widest rounded-md border border-zinc-200/60">
+              <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-slate-200/60">
                 {filteredData.length} Data
               </span>
             )}
           </div>
-          <p className="text-[13px] text-zinc-500 font-medium">Kelola dan pantau informasi operasional secara real-time.</p>
+          <p className="text-[13px] text-slate-500 font-medium">Kelola dan pantau informasi operasional secara real-time.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
           <div className="relative w-full sm:w-72 group">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-zinc-700 transition-colors" />
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
             <input
               type="text"
               placeholder="Cari data..."
               value={localSearchTerm}
               onChange={(e) => setLocalSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-zinc-50/50 border border-zinc-200/80 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-zinc-900/5 focus:border-zinc-400 focus:bg-white transition-all text-zinc-900 placeholder:text-zinc-400"
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-600/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
             />
           </div>
 
           {onAdd && (
             <button
               onClick={onAdd}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-xl hover:bg-zinc-800 hover:shadow-lg hover:shadow-zinc-900/10 transition-all duration-300 font-bold text-[12px] uppercase tracking-widest active:scale-95 cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/20 transition-all duration-300 font-bold text-[13px] active:scale-95 cursor-pointer"
             >
               <Plus size={16} strokeWidth={2.5} />
               Tambah Data
@@ -294,19 +322,19 @@ const DataTable = ({
       <div className="overflow-x-auto custom-scrollbar">
         <table className="w-full text-sm text-left border-collapse">
           <thead>
-            <tr className="bg-zinc-50/50 text-zinc-500 text-[11px] uppercase font-bold tracking-widest border-b border-zinc-100">
+            <tr className="bg-slate-50/50 text-slate-500 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200/60">
               {expandedRowRender && <th className="px-4 py-4 w-10 text-center"></th>}
               {columns.map((col, index) => (
-                <th key={index} className="px-6 py-5 whitespace-nowrap font-bold">
+                <th key={index} className="px-6 py-4 whitespace-nowrap">
                   {col.header}
                 </th>
               ))}
               {(onEdit || onDelete) && (
-                <th className="px-6 py-5 text-center whitespace-nowrap w-24">Aksi</th>
+                <th className="px-6 py-4 text-center whitespace-nowrap w-24">Aksi</th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100/80">
+          <tbody className="divide-y divide-slate-100">
             {filteredData.length > 0 ? (
               filteredData.map((row, rowIndex) => {
                 const isExpanded = !!expandedRows[rowIndex];
@@ -316,28 +344,28 @@ const DataTable = ({
                       onClick={() => {
                         if (expandedRowRender) toggleRow(rowIndex);
                       }}
-                      className={`transition-colors duration-200 group ${expandedRowRender ? 'cursor-pointer hover:bg-zinc-50' : 'hover:bg-zinc-50/50'} ${isExpanded ? 'bg-zinc-50' : ''}`}
+                      className={`transition-colors duration-200 group ${expandedRowRender ? 'cursor-pointer hover:bg-slate-50/80' : 'hover:bg-slate-50/50'} ${isExpanded ? 'bg-slate-50/80' : ''}`}
                     >
                       {expandedRowRender && (
-                        <td className="px-4 py-4 text-center text-zinc-400 group-hover:text-zinc-600 transition-colors">
+                        <td className="px-4 py-4 text-center text-slate-400 group-hover:text-slate-600 transition-colors">
                           {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         </td>
                       )}
                       {columns.map((col, colIndex) => (
-                        <td key={colIndex} className="px-6 py-4 text-zinc-600 whitespace-nowrap font-medium">
+                        <td key={colIndex} className="px-6 py-4 text-slate-700 whitespace-nowrap font-medium">
                           {col.render ? col.render(row[col.accessor], row) : row[col.accessor]}
                         </td>
                       ))}
                       {(onEdit || onDelete) && (
                         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             {onEdit && (
-                              <button onClick={() => onEdit(row)} className="p-2 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer">
+                              <button onClick={() => onEdit(row)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer">
                                 <Edit2 size={16} />
                               </button>
                             )}
                             {onDelete && (
-                              <button onClick={() => onDelete(row)} className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer">
+                              <button onClick={() => onDelete(row)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer">
                                 <Trash2 size={16} />
                               </button>
                             )}
@@ -346,8 +374,8 @@ const DataTable = ({
                       )}
                     </tr>
                     {isExpanded && expandedRowRender && (
-                      <tr className="bg-zinc-50/50">
-                        <td colSpan={totalCols} className="px-6 py-6 border-b border-zinc-100">
+                      <tr className="bg-slate-50/30">
+                        <td colSpan={totalCols} className="px-6 py-6 border-b border-slate-100">
                           <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                             {expandedRowRender(row)}
                           </div>
@@ -359,14 +387,14 @@ const DataTable = ({
               })
             ) : (
               <tr>
-                <td colSpan={totalCols} className="px-6 py-28 text-center">
+                <td colSpan={totalCols} className="px-6 py-24 text-center">
                   <div className="flex flex-col items-center max-w-sm mx-auto">
-                    <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mb-5 ring-8 ring-zinc-50/50">
-                      <FileX2 size={28} className="text-zinc-400" />
+                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
+                      <FileX2 size={28} className="text-slate-400" />
                     </div>
-                    <h3 className="text-zinc-900 font-bold mb-1">Data tidak ditemukan</h3>
-                    <p className="text-zinc-500 text-[13px] font-medium leading-relaxed">
-                      Kami tidak dapat menemukan data yang Anda cari. Coba sesuaikan filter atau kata kunci pencarian Anda.
+                    <h3 className="text-slate-800 font-bold mb-1">Data tidak ditemukan</h3>
+                    <p className="text-slate-500 text-[13px] font-medium leading-relaxed">
+                      Coba sesuaikan filter atau kata kunci pencarian Anda untuk menemukan data.
                     </p>
                   </div>
                 </td>
@@ -376,30 +404,31 @@ const DataTable = ({
         </table>
       </div>
 
+      {/* Pagination Berbasis Nomor */}
       {serverSide && totalPages > 1 && (
-        <div className="p-5 border-t border-zinc-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">
-            Halaman {page} dari {totalPages}
+        <div className="p-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/30">
+          <span className="text-[12px] font-semibold text-slate-500">
+            Halaman <strong className="text-slate-800">{page}</strong> dari <strong className="text-slate-800">{totalPages}</strong>
           </span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => onPageChange?.(page - 1)}
               disabled={page === 1}
-              className="p-2 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg text-slate-500 hover:bg-slate-200/50 hover:text-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft size={18} />
             </button>
 
             {getPageNumbers().map((num, idx) => (
               num === "..." ? (
-                <span key={idx} className="px-2 text-zinc-400 font-bold">...</span>
+                <span key={idx} className="px-2 text-slate-400 font-bold tracking-widest">...</span>
               ) : (
                 <button
                   key={idx}
                   onClick={() => onPageChange?.(num as number)}
-                  className={`min-w-[36px] h-9 flex items-center justify-center rounded-xl text-[13px] font-bold transition-all cursor-pointer ${page === num
-                    ? 'bg-zinc-900 text-white shadow-md shadow-zinc-900/10'
-                    : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
+                  className={`min-w-[32px] h-8 flex items-center justify-center rounded-lg text-[13px] font-bold transition-all cursor-pointer ${page === num
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
                     }`}
                 >
                   {num}
@@ -410,7 +439,7 @@ const DataTable = ({
             <button
               onClick={() => onPageChange?.(page + 1)}
               disabled={page === totalPages}
-              className="p-2 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg text-slate-500 hover:bg-slate-200/50 hover:text-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight size={18} />
             </button>
@@ -634,12 +663,13 @@ export default Select;
 </file>
 
 <file path="src/components/Sidebar.tsx">
-import { NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ClipboardList, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
   const { logout } = useAuth();
+  const location = useLocation();
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -647,40 +677,57 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="w-64 bg-sidebar-bg border-r border-sidebar-border h-screen sticky top-0 flex flex-col transition-colors duration-300 shadow-[4px_0_24px_rgb(0,0,0,0.01)]">
+    <aside className="w-[280px] bg-white border-r border-slate-200/80 h-screen sticky top-0 flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
       <div className="p-6">
-        <div className="flex items-center gap-3.5 mb-10 text-slate-900">
-          <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md shadow-slate-900/20">
+        {/* Logo Section */}
+        <div className="flex items-center gap-3.5 mb-8 text-slate-900 cursor-pointer group">
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform duration-300">
             B
           </div>
-          <span className="font-black text-xl tracking-tight">Bumantara</span>
+          <div>
+            <span className="font-black text-xl tracking-tight leading-none block text-slate-800">Bumantara</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">ERP System</span>
+          </div>
         </div>
 
-        <nav className="space-y-2">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center gap-3.5 px-4 py-3 rounded-xl text-[13px] font-bold transition-all duration-300 ${isActive
-                  ? 'bg-sidebar-active-bg text-sidebar-active-text shadow-md shadow-slate-900/5'
-                  : 'text-sidebar-text hover:bg-sidebar-hover-bg hover:text-slate-900'
-                }`
-              }
-            >
-              <item.icon size={18} />
-              {item.name}
-            </NavLink>
-          ))}
+        {/* Navigation */}
+        <nav className="space-y-1.5">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-3">Menu Utama</p>
+          {navItems.map((item) => {
+            // Logika active state yang lebih aman
+            const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`group flex items-center gap-3 px-3.5 py-3 rounded-xl text-[14px] font-semibold transition-all duration-300 relative overflow-hidden ${isActive
+                  ? 'bg-indigo-50/80 text-indigo-700'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+              >
+                {isActive && (
+                  <span className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600 rounded-r-full"></span>
+                )}
+                <item.icon
+                  size={20}
+                  strokeWidth={isActive ? 2.5 : 2}
+                  className={`transition-transform duration-300 ${isActive ? 'scale-110 text-indigo-600' : 'group-hover:scale-110 group-hover:text-slate-700'}`}
+                />
+                {item.name}
+              </Link>
+            );
+          })}
         </nav>
       </div>
 
-      <div className="mt-auto p-6 border-t border-sidebar-border bg-slate-50/50">
+      {/* Footer / Logout */}
+      <div className="mt-auto p-6">
         <button
           onClick={logout}
-          className="flex items-center gap-3.5 px-4 py-3 w-full text-left rounded-xl text-[13px] font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-300 cursor-pointer group"
+          className="flex items-center gap-3 px-3.5 py-3 w-full text-left rounded-xl text-[14px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-300 cursor-pointer group"
         >
-          <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <LogOut size={20} strokeWidth={2} className="group-hover:-translate-x-1 transition-transform" />
           Keluar Sistem
         </button>
       </div>
@@ -848,7 +895,7 @@ export const useForm = <T>(
   --font-sans: "Montserrat", system-ui, sans-serif;
   --font-heading: "", var(--font-sans);
 
-  --radius-btn: 10px; /* Sedikit lebih membulat untuk kesan modern */
+  --radius-btn: 10px;
   --radius-card: 20px;
 
   --color-sidebar-bg: var(--sidebar-bg);
@@ -859,36 +906,34 @@ export const useForm = <T>(
   --color-sidebar-active-text: var(--sidebar-active-text);
 }
 
+/* Update pada bagian :root di src/index.css */
 :root {
   --section-padding-y: 6rem;
   --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Background diubah ke off-white (Zinc 50) agar tidak menyilaukan seperti kertas HVS */
-  --theme-background: #fafafa;
-  /* Foreground diubah ke Zinc 800 (Charcoal), hindari #000 pure black untuk mengurangi eye-strain */
-  --theme-foreground: #27272a;
+  /* Background utama dibuat Slate 100 agar lebih redup dan teduh */
+  --theme-background: #f1f5f9;
+  --theme-foreground: #1e293b;
 
-  /* Sidebar Premium Neutral Theme */
-  --sidebar-bg: #ffffff;
-  --sidebar-text: #71717a; /* Zinc 500 */
-  --sidebar-border: #f4f4f5; /* Zinc 100 */
-  --sidebar-hover-bg: #f4f4f5;
-  --sidebar-active-bg: #18181b; /* Zinc 900 */
-  --sidebar-active-text: #ffffff;
+  /* Sidebar menggunakan Slate 50 (Off-white sejuk), hindari #ffffff */
+  --sidebar-bg: #f8fafc;
+  --sidebar-text: #64748b;
+  --sidebar-border: #e2e8f0;
+  --sidebar-hover-bg: #f1f5f9;
+  --sidebar-active-bg: #e0e7ff;
+  --sidebar-active-text: #4338ca;
 }
-
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Dark mode yang elegan dan tidak pitch-black */
-    --theme-background: #09090b; /* Zinc 950 */
-    --theme-foreground: #fafafa; /* Zinc 50 */
+    --theme-background: #0f172a; /* Slate 900 */
+    --theme-foreground: #f8fafc;
 
-    --sidebar-bg: #09090b;
-    --sidebar-text: #a1a1aa;
-    --sidebar-border: #27272a;
-    --sidebar-hover-bg: #18181b;
-    --sidebar-active-bg: #fafafa;
-    --sidebar-active-text: #09090b;
+    --sidebar-bg: #0f172a;
+    --sidebar-text: #94a3b8;
+    --sidebar-border: #1e293b;
+    --sidebar-hover-bg: #1e293b;
+    --sidebar-active-bg: #1e1b4b; /* Deep indigo */
+    --sidebar-active-text: #818cf8;
   }
 }
 
@@ -913,10 +958,10 @@ h4,
 h5,
 h6 {
   font-family: var(--font-heading);
-  letter-spacing: -0.03em; /* Rapat dan tegas */
+  letter-spacing: -0.03em;
 }
 
-/* Custom Scrollbar Premium - Dibuat menyatu dengan background */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -925,11 +970,11 @@ h6 {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #e4e4e7; /* Zinc 200 */
+  background: #cbd5e1; /* Slate 300 */
   border-radius: 20px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1aa; /* Zinc 400 */
+  background: #94a3b8; /* Slate 400 */
 }
 </file>
 
@@ -981,7 +1026,7 @@ import { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
-import { Download, FileSpreadsheet, Loader2, ChevronLeft, ChevronRight, MapPin, Maximize2, UserCircle2 } from 'lucide-react';
+import { Download, FileSpreadsheet, Loader2, MapPin, Maximize2, UserCircle2, Filter } from 'lucide-react';
 
 import { useAttendanceHistory } from '../../hooks/useAttendance';
 import api from '../../lib/axios';
@@ -995,56 +1040,41 @@ import type { Attendance, AttendanceHistoryParams } from '../../types/models/att
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 const AttendanceRecap = () => {
-  const googleMapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
   const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: async () => (await api.get('/roles')).data.data });
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: async () => (await api.get('/projects')).data.data });
   const { data: companies } = useQuery({ queryKey: ['perusahaan'], queryFn: async () => (await api.get('/perusahaan')).data.data });
 
   const [filters, setFilters] = useState<AttendanceHistoryParams>({
-    limit: 10, search: '', type: '', sortOrder: 'desc',
+    limit: 10, page: 1, search: '', type: '', sortOrder: 'desc',
     startDate: getTodayDateString(), endDate: getTodayDateString(),
     role: '', projectId: '', perusahaanId: '',
   });
 
-  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
-  const [currentCursor, setCurrentCursor] = useState<string | undefined>(undefined);
   const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
 
-  const { data } = useAttendanceHistory({ ...filters, cursor: currentCursor });
+  const { data } = useAttendanceHistory(filters);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-    setCurrentCursor(undefined);
-    setCursorHistory([]);
+    setFilters(prev => ({ ...prev, [name]: value, page: 1 }));
   };
 
-  const handleNextPage = () => {
-    if (data?.meta.nextCursor) {
-      setCursorHistory(prev => [...prev, currentCursor || '']);
-      setCurrentCursor(data.meta.nextCursor);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (cursorHistory.length > 0) {
-      const newHistory = [...cursorHistory];
-      const prevCursor = newHistory.pop();
-      setCursorHistory(newHistory);
-      setCurrentCursor(prevCursor === '' ? undefined : prevCursor);
-    }
+  const handlePageChange = (newPage: number) => {
+    setFilters(prev => ({ ...prev, page: newPage }));
   };
 
   const handleExportExcel = () => {
     if (!data?.items.length) return;
     const headers = ['Nama', 'NIK', 'Tipe', 'Waktu', 'Proyek', 'Lokasi'];
     const rows = data.items.map(item => [
-      `"${item.userName}"`, `"${item.userNik || '-'}"`, `"${item.type}"`,
-      `"${formatDate(item.recordedAt)}"`, `"${item.projectName || '-'}"`,
-      `"${item.latitude},${item.longitude}"`
+      `"${item.userName}"`,
+      `"${item.userNik || '-'}"`,
+      `"${item.type}"`,
+      `"${formatDate(item.recordedAt)}"`,
+      `"${item.projectName || '-'}"`,
+      `"${item.latitude || ''},${item.longitude || ''}"`
     ].join(','));
     const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -1058,7 +1088,7 @@ const AttendanceRecap = () => {
     if (!tableRef.current) return;
     setIsExportingPDF(true);
     try {
-      const dataUrl = await toPng(tableRef.current, { backgroundColor: '#fff', pixelRatio: 2 });
+      const dataUrl = await toPng(tableRef.current, { backgroundColor: '#f8fafc', pixelRatio: 2 });
       const pdf = new jsPDF('l', 'mm', 'a4');
       const width = pdf.internal.pageSize.getWidth();
       const imgProps = pdf.getImageProperties(dataUrl);
@@ -1076,17 +1106,17 @@ const AttendanceRecap = () => {
       accessor: 'capturedImageUrl',
       render: (val: string, row: Attendance) => (
         <div
-          className="relative w-12 h-12 rounded-xl overflow-hidden cursor-pointer group border border-zinc-200/80 shadow-sm"
+          className="relative w-11 h-11 rounded-lg overflow-hidden cursor-pointer group border border-slate-200/80 shadow-sm"
           onClick={() => setSelectedAttendance(row)}
         >
           {val ? (
             <img src={val} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Preview" />
           ) : (
-            <div className="w-full h-full bg-zinc-100 flex items-center justify-center">
-              <UserCircle2 className="text-zinc-300" size={24} />
+            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+              <UserCircle2 className="text-slate-400" size={24} />
             </div>
           )}
-          <div className="absolute inset-0 bg-zinc-900/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300 backdrop-blur-[1px]">
+          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
             <Maximize2 size={16} className="text-white" />
           </div>
         </div>
@@ -1097,8 +1127,8 @@ const AttendanceRecap = () => {
       accessor: 'userName',
       render: (val: string, row: Attendance) => (
         <div className="cursor-pointer group" onClick={() => setSelectedAttendance(row)}>
-          <p className="font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors">{val}</p>
-          <p className="text-[12px] text-zinc-500 font-medium mt-0.5">{row.userRole} <span className="mx-1 text-zinc-300">•</span> {row.userNik || 'No NIK'}</p>
+          <p className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{val}</p>
+          <p className="text-[12px] text-slate-500 font-medium mt-0.5">{row.userRole} <span className="mx-1 text-slate-300">•</span> {row.userNik || 'No NIK'}</p>
         </div>
       )
     },
@@ -1106,10 +1136,7 @@ const AttendanceRecap = () => {
       header: 'Status',
       accessor: 'type',
       render: (val: string) => (
-        <span className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border tracking-wide ${val === 'IN'
-          ? 'bg-emerald-50/50 text-emerald-600 border-emerald-200/60'
-          : 'bg-amber-50/50 text-amber-600 border-amber-200/60'
-          }`}>
+        <span className={`px-2.5 py-1 text-[11px] font-bold rounded-md tracking-wide ${val === 'IN' ? 'bg-emerald-100/60 text-emerald-700' : 'bg-amber-100/60 text-amber-700'}`}>
           {val === 'IN' ? 'MASUK' : 'KELUAR'}
         </span>
       )
@@ -1117,46 +1144,53 @@ const AttendanceRecap = () => {
     {
       header: 'Waktu',
       accessor: 'recordedAt',
-      render: (val: string) => <span className="text-[13px] font-semibold text-zinc-700">{formatDate(val)}</span>
+      render: (val: string) => <span className="text-[13px] font-semibold text-slate-700">{formatDate(val)}</span>
     },
     {
       header: 'Proyek',
       accessor: 'projectName',
-      render: (val: string) => <span className="text-[13px] font-medium text-zinc-500">{val || '-'}</span>
+      render: (val: string) => <span className="text-[13px] font-medium text-slate-600">{val || '-'}</span>
     }
   ];
 
+  // Logic aman untuk mendeteksi total halaman
+  const totalPages = data?.meta?.total
+    ? Math.ceil(data.meta.total / (filters.limit || 10))
+    : (data?.meta?.lastPage || 1);
+
   return (
     <div className="space-y-6">
-      {/* Action Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white px-8 py-4 rounded-xl">
         <div>
-          <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Rekap Absensi</h1>
-          <p className="text-zinc-500 text-[14px] font-medium mt-1">Sistem pemantauan kehadiran & integrasi biometrik.</p>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Rekap Absensi</h1>
+          <p className="text-slate-500 text-[14px] font-medium mt-1">Sistem pemantauan kehadiran real-time.</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-zinc-200 rounded-xl font-bold text-[13px] text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 hover:border-zinc-300 transition-all shadow-sm cursor-pointer active:scale-95">
-            <FileSpreadsheet size={18} className="text-emerald-600" /> Excel
+          <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-95">
+            <FileSpreadsheet size={16} className="text-emerald-600" /> Export Excel
           </button>
-          <button onClick={handleExportPDF} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl font-bold text-[13px] hover:bg-zinc-800 hover:shadow-lg hover:shadow-zinc-900/10 transition-all active:scale-95 cursor-pointer">
-            {isExportingPDF ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />} PDF
+          <button onClick={handleExportPDF} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-[13px] hover:bg-slate-900 shadow-md transition-all active:scale-95">
+            {isExportingPDF ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Cetak PDF
           </button>
         </div>
       </div>
 
-      {/* Filters Card */}
-      <div className="bg-white p-6 rounded-[24px] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)] border border-zinc-100">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-x-5 gap-y-2">
+      <div className="bg-white p-6 rounded-[20px] shadow-sm border border-slate-200/80">
+        <div className="flex items-center gap-2.5 mb-5 border-b border-slate-100 pb-4">
+          <Filter size={18} className="text-slate-400" />
+          <h2 className="text-[15px] font-bold text-slate-800">Filter Data</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <Input label="Mulai" type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} />
           <Input label="Selesai" type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} />
           <Select label="Tipe" name="type" value={filters.type} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Tipe' }, { value: 'IN', label: 'Masuk' }, { value: 'OUT', label: 'Keluar' }]} />
-          <Select label="Perusahaan" name="perusahaanId" value={filters.perusahaanId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Perusahaan' }, ...(companies?.map((c: any) => ({ value: c.id, label: c.nama })) || [])]} />
-          <Select label="Proyek" name="projectId" value={filters.projectId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Proyek' }, ...(projects?.map((p: any) => ({ value: p.id, label: p.name })) || [])]} />
-          <Select label="Jabatan" name="role" value={filters.role} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Jabatan' }, ...(roles?.map((r: any) => ({ value: r.name, label: r.name })) || [])]} />
+          <Select label="Perusahaan" name="perusahaanId" value={filters.perusahaanId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(companies?.map((c: any) => ({ value: c.id, label: c.nama })) || [])]} />
+          <Select label="Proyek" name="projectId" value={filters.projectId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(projects?.map((p: any) => ({ value: p.id, label: p.name })) || [])]} />
+          <Select label="Jabatan" name="role" value={filters.role} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(roles?.map((r: any) => ({ value: r.name, label: r.name })) || [])]} />
         </div>
       </div>
 
-      {/* Table Area */}
       <div ref={tableRef}>
         <DataTable
           title="Log Kehadiran"
@@ -1164,98 +1198,89 @@ const AttendanceRecap = () => {
           data={data?.items || []}
           serverSide
           searchTerm={filters.search}
-          onSearchChange={(s) => setFilters(f => ({ ...f, search: s }))}
+          onSearchChange={(s) => setFilters(f => ({ ...f, search: s, page: 1 }))}
+          page={filters.page}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
         />
-
-        {/* Manual Pagination Info */}
-        <div className="mt-4 flex justify-between items-center px-2">
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Total Record: {data?.items.length || 0}</span>
-          <div className="flex gap-2">
-            <button onClick={handlePrevPage} disabled={cursorHistory.length === 0} className="p-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-500 disabled:opacity-30 cursor-pointer hover:bg-zinc-50 hover:text-zinc-900 transition-colors"><ChevronLeft size={18} strokeWidth={2.5} /></button>
-            <button onClick={handleNextPage} disabled={!data?.meta.hasNextPage} className="p-2.5 rounded-xl bg-zinc-900 text-white disabled:opacity-30 cursor-pointer hover:bg-zinc-800 transition-colors shadow-md shadow-zinc-900/10"><ChevronRight size={18} strokeWidth={2.5} /></button>
-          </div>
-        </div>
       </div>
 
-      {/* Modal Detail Absensi */}
       <Modal isOpen={!!selectedAttendance} onClose={() => setSelectedAttendance(null)} title="Detail Validasi Kehadiran">
         {selectedAttendance && (
-          <div className="flex flex-col md:flex-row gap-8">
-            {/* Foto Biometrik */}
+          <div className="flex flex-col md:flex-row gap-6">
             <div className="w-full md:w-2/5">
-              <div className="rounded-3xl overflow-hidden border-[8px] border-white shadow-xl shadow-zinc-200/50 aspect-[3/4] bg-zinc-100 relative group">
+              <div className="rounded-2xl overflow-hidden border-[6px] border-white shadow-lg aspect-[3/4] bg-slate-100 relative">
                 {selectedAttendance.capturedImageUrl ? (
                   <img src={selectedAttendance.capturedImageUrl} className="w-full h-full object-cover" alt="Captured Biometric" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center flex-col text-zinc-400 gap-3">
-                    <UserCircle2 size={64} strokeWidth={1} />
+                  <div className="w-full h-full flex items-center justify-center flex-col text-slate-400 gap-3">
+                    <UserCircle2 size={56} strokeWidth={1.5} />
                     <span className="text-sm font-medium">Foto tidak tersedia</span>
                   </div>
                 )}
-                <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md p-3.5 rounded-2xl border border-white shadow-sm flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Confidence Score</span>
-                  <span className="text-sm font-black text-zinc-900">{selectedAttendance.confidence ? `${(selectedAttendance.confidence * 100).toFixed(1)}%` : 'N/A'}</span>
+                <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-sm flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Confidence Score</span>
+                  <span className="text-sm font-black text-slate-800">{selectedAttendance.confidence ? `${(selectedAttendance.confidence * 100).toFixed(1)}%` : 'N/A'}</span>
                 </div>
               </div>
             </div>
 
-            {/* Info & Map */}
-            <div className="flex-1 flex flex-col gap-6">
-              <div className="bg-white p-7 rounded-3xl border border-zinc-100 shadow-sm shadow-zinc-100/50">
-                <div className="flex justify-between items-start mb-6">
+            <div className="flex-1 flex flex-col gap-5">
+              <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                <div className="flex justify-between items-start mb-5">
                   <div>
-                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight">{selectedAttendance.userName}</h2>
-                    <p className="font-bold text-zinc-500 mt-1">{selectedAttendance.userRole} <span className="font-normal text-zinc-300 mx-1.5">|</span> {selectedAttendance.userNik || '-'}</p>
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight">{selectedAttendance.userName}</h2>
+                    <p className="font-semibold text-slate-500 mt-1 text-sm">{selectedAttendance.userRole} <span className="font-normal text-slate-300 mx-1.5">|</span> {selectedAttendance.userNik || '-'}</p>
                   </div>
-                  <span className={`px-4 py-2 rounded-xl text-[11px] font-black tracking-widest border ${selectedAttendance.type === 'IN'
-                    ? 'bg-emerald-50/80 text-emerald-600 border-emerald-200/60'
-                    : 'bg-amber-50/80 text-amber-600 border-amber-200/60'
+                  <span className={`px-3 py-1.5 rounded-lg text-[11px] font-black tracking-widest ${selectedAttendance.type === 'IN'
+                    ? 'bg-emerald-100/60 text-emerald-700'
+                    : 'bg-amber-100/60 text-amber-700'
                     }`}>
                     {selectedAttendance.type === 'IN' ? 'MASUK' : 'KELUAR'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-y-6 gap-x-4 pt-6 border-t border-zinc-100">
+                <div className="grid grid-cols-2 gap-y-5 gap-x-4 pt-5 border-t border-slate-200/60">
                   <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Waktu Pencatatan</p>
-                    <p className="text-[14px] font-bold text-zinc-900">{formatDate(selectedAttendance.recordedAt)}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Waktu</p>
+                    <p className="text-[14px] font-bold text-slate-800">{formatDate(selectedAttendance.recordedAt)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Proyek / Lokasi</p>
-                    <p className="text-[14px] font-bold text-zinc-900">{selectedAttendance.projectName || 'Pusat / Tidak ada'}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Proyek/Lokasi</p>
+                    <p className="text-[14px] font-bold text-slate-800">{selectedAttendance.projectName || 'Pusat / Tidak ada'}</p>
                   </div>
-                  <div className="col-span-2 bg-zinc-50 p-4 rounded-2xl border border-zinc-100 mt-2">
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Direkam Oleh</p>
-                    <p className="text-[13px] font-bold text-zinc-700">
-                      {selectedAttendance.recordedByName} <span className="font-medium text-zinc-500">({selectedAttendance.recordedByRole})</span>
+                  <div className="col-span-2 bg-white p-3.5 rounded-xl border border-slate-100 mt-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Direkam Oleh</p>
+                    <p className="text-[13px] font-bold text-slate-700">
+                      {selectedAttendance.recordedByName} <span className="font-medium text-slate-400">({selectedAttendance.recordedByRole})</span>
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Google Maps Embed */}
-              <div className="flex-1 min-h-[220px] flex flex-col">
-                <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2 mb-3 ml-1">
-                  <MapPin size={14} className="text-zinc-400" /> Kordinat GPS
+              <div className="flex-1 min-h-[180px] flex flex-col">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mb-2.5 ml-1">
+                  <MapPin size={14} className="text-slate-400" /> Kordinat GPS
                 </p>
-                <div className="flex-1 rounded-3xl overflow-hidden border border-zinc-200 shadow-inner bg-zinc-100 relative">
-                  {selectedAttendance.latitude && googleMapsKey ? (
+                <div className="flex-1 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 relative">
+                  {selectedAttendance.latitude && selectedAttendance.longitude ? (
                     <iframe
                       width="100%"
                       height="100%"
                       frameBorder="0"
-                      style={{ border: 0, minHeight: '220px' }}
-                      src={`https://www.google.com/maps/embed/v1/place?key=${googleMapsKey}&q=${selectedAttendance.latitude},${selectedAttendance.longitude}&zoom=16`}
+                      style={{ border: 0, minHeight: '180px' }}
+                      src={`https://maps.google.com/maps?q=${selectedAttendance.latitude},${selectedAttendance.longitude}&z=16&output=embed`}
                       allowFullScreen
                     ></iframe>
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-zinc-400 py-10">
-                      <MapPin size={32} className="mb-3 opacity-40" />
-                      <span className="font-bold text-sm">Lokasi GPS tidak tersedia</span>
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                      <MapPin size={28} className="mb-2 opacity-40" />
+                      <span className="font-bold text-xs">Lokasi GPS tidak tersedia</span>
                     </div>
                   )}
                 </div>
               </div>
+
             </div>
           </div>
         )}
@@ -1334,18 +1359,18 @@ const Login = () => {
   };
 
   return (
-    // Background diubah ke warna zinc-50 (#fafafa) murni agar teduh
-    <div className="min-h-screen flex items-center justify-center bg-[#fafafa] p-4">
+    // Background menggunakan gradien lembut yang tidak merusak mata
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-50 p-4">
 
-      {/* Shadow dibuat sangat soft dan blur tinggi (premium feel) */}
-      <div className="max-w-md w-full bg-white rounded-[24px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-zinc-100 p-8 sm:p-12">
+      <div className="max-w-md w-full bg-white rounded-[24px] shadow-[0_20px_60px_-15px_rgba(79,70,229,0.1)] border border-indigo-50 p-8 sm:p-12">
 
         <div className="text-center mb-10">
-          <div className="w-14 h-14 bg-zinc-900 rounded-[14px] mx-auto flex items-center justify-center text-white font-black text-2xl shadow-xl shadow-zinc-900/10 mb-6 tracking-tighter">
+          {/* Logo dengan gradien warna biru/indigo */}
+          <div className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-blue-500 rounded-[14px] mx-auto flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-indigo-500/20 mb-6 tracking-tighter">
             B
           </div>
-          <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Bumantara</h1>
-          <p className="text-[13px] text-zinc-500 mt-2 font-medium">Sistem Manajemen & Absensi</p>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Bumantara</h1>
+          <p className="text-[13px] text-slate-500 mt-2 font-medium">Sistem Manajemen & Absensi</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
@@ -1377,8 +1402,9 @@ const Login = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full bg-zinc-900 text-white font-bold text-[13px] uppercase tracking-wider py-4 rounded-xl transition-all duration-300 mt-8 flex justify-center items-center gap-2 
-            ${isLoading ? 'opacity-70 cursor-wait' : 'hover:bg-zinc-800 hover:shadow-xl hover:shadow-zinc-900/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer'}`}
+            // Tombol menggunakan warna Indigo yang modern
+            className={`w-full bg-indigo-600 text-white font-bold text-[13px] uppercase tracking-wider py-4 rounded-xl transition-all duration-300 mt-8 flex justify-center items-center gap-2 
+            ${isLoading ? 'opacity-70 cursor-wait' : 'hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-600/20 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer'}`}
           >
             {isLoading ? (
               <><Loader2 size={18} className="animate-spin" /> Memproses...</>
@@ -1496,8 +1522,9 @@ import type { ApiResponse } from "../types/api_response";
 import type {
   Attendance,
   AttendanceHistoryParams,
-  CursorPaginatedData,
+  PaginatedData,
 } from "../types/models/attendance";
+
 export const attendanceService = {
   getHistory: async (params: AttendanceHistoryParams) => {
     const apiParams = { ...params };
@@ -1514,9 +1541,10 @@ export const attendanceService = {
       ).toISOString();
     }
 
-    const { data } = await api.get<
-      ApiResponse<CursorPaginatedData<Attendance>>
-    >("/attendance/history", { params: apiParams });
+    const { data } = await api.get<ApiResponse<PaginatedData<Attendance>>>(
+      "/attendance/history",
+      { params: apiParams },
+    );
     return data.data;
   },
 };
@@ -1582,6 +1610,7 @@ export interface Attendance {
 
 export interface AttendanceHistoryParams {
   limit?: number;
+  page?: number;
   cursor?: string;
   search?: string;
   type?: "IN" | "OUT" | "";
@@ -1593,14 +1622,17 @@ export interface AttendanceHistoryParams {
   projectId?: string;
 }
 
-export interface CursorPaginationMeta {
-  nextCursor: string | null;
-  hasNextPage: boolean;
+export interface PaginationMeta {
+  nextCursor?: string | null;
+  hasNextPage?: boolean;
+  total?: number;
+  lastPage?: number;
+  page?: number;
 }
 
-export interface CursorPaginatedData<T> {
+export interface PaginatedData<T> {
   items: T[];
-  meta: CursorPaginationMeta;
+  meta: PaginationMeta;
 }
 </file>
 

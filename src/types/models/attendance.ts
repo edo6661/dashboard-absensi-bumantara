@@ -19,6 +19,7 @@ export interface Attendance {
 
 export interface AttendanceHistoryParams {
   limit?: number;
+  page?: number;
   cursor?: string;
   search?: string;
   type?: "IN" | "OUT" | "";
@@ -30,12 +31,15 @@ export interface AttendanceHistoryParams {
   projectId?: string;
 }
 
-export interface CursorPaginationMeta {
-  nextCursor: string | null;
-  hasNextPage: boolean;
+export interface PaginationMeta {
+  nextCursor?: string | null;
+  hasNextPage?: boolean;
+  total?: number;
+  lastPage?: number;
+  page?: number;
 }
 
-export interface CursorPaginatedData<T> {
+export interface PaginatedData<T> {
   items: T[];
-  meta: CursorPaginationMeta;
+  meta: PaginationMeta;
 }

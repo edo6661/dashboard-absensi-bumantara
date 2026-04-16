@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
-import { Download, FileSpreadsheet, Loader2, ChevronLeft, ChevronRight, MapPin, Maximize2, UserCircle2 } from 'lucide-react';
+import autoTable from 'jspdf-autotable';
+import { Download, FileSpreadsheet, Loader2, MapPin, Maximize2, UserCircle2, Filter } from 'lucide-react';
 
 import { useAttendanceHistory } from '../../hooks/useAttendance';
 import api from '../../lib/axios';
@@ -12,102 +12,137 @@ import Input from '../../components/shared/Input';
 import Modal from '../../components/shared/Modal';
 import { formatDate } from '../../utils/formatters';
 import type { Attendance, AttendanceHistoryParams } from '../../types/models/attendance';
+import { attendanceService } from '../../services/attendance.service';
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 const AttendanceRecap = () => {
-  const googleMapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
   const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: async () => (await api.get('/roles')).data.data });
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: async () => (await api.get('/projects')).data.data });
   const { data: companies } = useQuery({ queryKey: ['perusahaan'], queryFn: async () => (await api.get('/perusahaan')).data.data });
 
   const [filters, setFilters] = useState<AttendanceHistoryParams>({
-    limit: 10, search: '', type: '', sortOrder: 'desc',
+    limit: 10, page: 1, search: '', type: '', sortOrder: 'desc',
     startDate: getTodayDateString(), endDate: getTodayDateString(),
     role: '', projectId: '', perusahaanId: '',
   });
 
-  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
-  const [currentCursor, setCurrentCursor] = useState<string | undefined>(undefined);
   const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
-  const tableRef = useRef<HTMLDivElement>(null);
 
-  const { data } = useAttendanceHistory({ ...filters, cursor: currentCursor });
+  const { data } = useAttendanceHistory(filters);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-    setCurrentCursor(undefined);
-    setCursorHistory([]);
+    setFilters(prev => ({ ...prev, [name]: value, page: 1 }));
   };
 
-  const handleNextPage = () => {
-    if (data?.meta.nextCursor) {
-      setCursorHistory(prev => [...prev, currentCursor || '']);
-      setCurrentCursor(data.meta.nextCursor);
+  const handlePageChange = (newPage: number) => {
+    setFilters(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const exportParams = { ...filters, limit: 10000, page: 1 };
+
+      // PERBAIKAN: Gunakan attendanceService agar format ISO otomatis tertangani
+      const response = await attendanceService.getHistory(exportParams);
+      const allItems: Attendance[] = response.items;
+
+      if (!allItems.length) {
+        alert("Tidak ada data untuk di-export");
+        return;
+      }
+
+      const headers = ['Nama', 'NIK', 'Tipe', 'Waktu', 'Proyek', 'Lokasi'];
+      const rows = allItems.map(item => [
+        `"${item.userName}"`,
+        `="${item.userNik || '-'}"`,
+        `"${item.type === 'IN' ? 'MASUK' : 'KELUAR'}"`,
+        `"${formatDate(item.recordedAt)}"`,
+        `"${item.projectName || '-'}"`,
+        `"${item.latitude || ''}, ${item.longitude || ''}"`
+      ].join(','));
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Rekap_Absensi_${filters.startDate}.csv`;
+      link.click();
+    } catch (error) {
+      console.error("Gagal export Excel", error);
+      alert("Terjadi kesalahan saat mengunduh data.");
     }
-  };
-
-  const handlePrevPage = () => {
-    if (cursorHistory.length > 0) {
-      const newHistory = [...cursorHistory];
-      const prevCursor = newHistory.pop();
-      setCursorHistory(newHistory);
-      setCurrentCursor(prevCursor === '' ? undefined : prevCursor);
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (!data?.items.length) return;
-    const headers = ['Nama', 'NIK', 'Tipe', 'Waktu', 'Proyek', 'Lokasi'];
-    const rows = data.items.map(item => [
-      `"${item.userName}"`, `"${item.userNik || '-'}"`, `"${item.type}"`,
-      `"${formatDate(item.recordedAt)}"`, `"${item.projectName || '-'}"`,
-      `"${item.latitude},${item.longitude}"`
-    ].join(','));
-    const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Absensi_${filters.startDate}.csv`;
-    link.click();
   };
 
   const handleExportPDF = async () => {
-    if (!tableRef.current) return;
     setIsExportingPDF(true);
     try {
-      const dataUrl = await toPng(tableRef.current, { backgroundColor: '#fff', pixelRatio: 2 });
-      const pdf = new jsPDF('l', 'mm', 'a4');
-      const width = pdf.internal.pageSize.getWidth();
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const printHeight = (imgProps.height * (width - 20)) / imgProps.width;
-      pdf.addImage(dataUrl, 'PNG', 10, 10, width - 20, printHeight);
-      pdf.save(`Absensi_${filters.startDate}.pdf`);
+      const exportParams = { ...filters, limit: 10000, page: 1 };
+
+      // PERBAIKAN: Gunakan attendanceService agar format ISO otomatis tertangani
+      const response = await attendanceService.getHistory(exportParams);
+      const allItems: Attendance[] = response.items;
+
+      if (!allItems.length) {
+        alert("Tidak ada data untuk di-export");
+        setIsExportingPDF(false);
+        return;
+      }
+
+      const pdf = new jsPDF('p', 'pt', 'a4');
+
+      pdf.setFontSize(16);
+      pdf.text('Laporan Rekap Absensi', 40, 40);
+      pdf.setFontSize(10);
+      pdf.setTextColor(100);
+      pdf.text(`Periode: ${filters.startDate} s/d ${filters.endDate}`, 40, 55);
+
+      const tableData = allItems.map(item => [
+        item.userName,
+        item.userNik || '-',
+        item.type === 'IN' ? 'MASUK' : 'KELUAR',
+        formatDate(item.recordedAt),
+        item.projectName || 'Pusat'
+      ]);
+
+      autoTable(pdf, {
+        startY: 70,
+        head: [['Nama Pegawai', 'NIK', 'Status', 'Waktu', 'Proyek/Lokasi']],
+        body: tableData,
+        headStyles: { fillColor: [79, 70, 229] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { fontSize: 9, cellPadding: 6 },
+      });
+
+      pdf.save(`Rekap_Absensi_${filters.startDate}.pdf`);
+    } catch (error) {
+      console.error("Gagal export PDF", error);
+      alert("Terjadi kesalahan saat men-generate PDF.");
     } finally {
       setIsExportingPDF(false);
     }
   };
-
   const columns = [
     {
       header: 'Preview',
       accessor: 'capturedImageUrl',
       render: (val: string, row: Attendance) => (
         <div
-          className="relative w-12 h-12 rounded-xl overflow-hidden cursor-pointer group border border-zinc-200/80 shadow-sm"
+          className="relative w-11 h-11 rounded-lg overflow-hidden cursor-pointer group border border-slate-200/80 shadow-sm"
           onClick={() => setSelectedAttendance(row)}
         >
           {val ? (
             <img src={val} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Preview" />
           ) : (
-            <div className="w-full h-full bg-zinc-100 flex items-center justify-center">
-              <UserCircle2 className="text-zinc-300" size={24} />
+            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+              <UserCircle2 className="text-slate-400" size={24} />
             </div>
           )}
-          <div className="absolute inset-0 bg-zinc-900/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300 backdrop-blur-[1px]">
+          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
             <Maximize2 size={16} className="text-white" />
           </div>
         </div>
@@ -118,8 +153,8 @@ const AttendanceRecap = () => {
       accessor: 'userName',
       render: (val: string, row: Attendance) => (
         <div className="cursor-pointer group" onClick={() => setSelectedAttendance(row)}>
-          <p className="font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors">{val}</p>
-          <p className="text-[12px] text-zinc-500 font-medium mt-0.5">{row.userRole} <span className="mx-1 text-zinc-300">•</span> {row.userNik || 'No NIK'}</p>
+          <p className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{val}</p>
+          <p className="text-[12px] text-slate-500 font-medium mt-0.5">{row.userRole} <span className="mx-1 text-slate-300">•</span> {row.userNik || 'No NIK'}</p>
         </div>
       )
     },
@@ -127,10 +162,7 @@ const AttendanceRecap = () => {
       header: 'Status',
       accessor: 'type',
       render: (val: string) => (
-        <span className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border tracking-wide ${val === 'IN'
-          ? 'bg-emerald-50/50 text-emerald-600 border-emerald-200/60'
-          : 'bg-amber-50/50 text-amber-600 border-amber-200/60'
-          }`}>
+        <span className={`px-2.5 py-1 text-[11px] font-bold rounded-md tracking-wide ${val === 'IN' ? 'bg-emerald-100/60 text-emerald-700' : 'bg-amber-100/60 text-amber-700'}`}>
           {val === 'IN' ? 'MASUK' : 'KELUAR'}
         </span>
       )
@@ -138,145 +170,143 @@ const AttendanceRecap = () => {
     {
       header: 'Waktu',
       accessor: 'recordedAt',
-      render: (val: string) => <span className="text-[13px] font-semibold text-zinc-700">{formatDate(val)}</span>
+      render: (val: string) => <span className="text-[13px] font-semibold text-slate-700">{formatDate(val)}</span>
     },
     {
       header: 'Proyek',
       accessor: 'projectName',
-      render: (val: string) => <span className="text-[13px] font-medium text-zinc-500">{val || '-'}</span>
+      render: (val: string) => <span className="text-[13px] font-medium text-slate-600">{val || '-'}</span>
     }
   ];
 
+  // Logic aman untuk mendeteksi total halaman
+  const totalPages = data?.meta?.total
+    ? Math.ceil(data.meta.total / (filters.limit || 10))
+    : (data?.meta?.lastPage || 1);
+
   return (
     <div className="space-y-6">
-      {/* Action Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white px-8 py-4 rounded-xl">
         <div>
-          <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Rekap Absensi</h1>
-          <p className="text-zinc-500 text-[14px] font-medium mt-1">Sistem pemantauan kehadiran & integrasi biometrik.</p>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Rekap Absensi</h1>
+          <p className="text-slate-500 text-[14px] font-medium mt-1">Sistem pemantauan kehadiran real-time.</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-zinc-200 rounded-xl font-bold text-[13px] text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 hover:border-zinc-300 transition-all shadow-sm cursor-pointer active:scale-95">
-            <FileSpreadsheet size={18} className="text-emerald-600" /> Excel
+          <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-95">
+            <FileSpreadsheet size={16} className="text-emerald-600" /> Export Excel
           </button>
-          <button onClick={handleExportPDF} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl font-bold text-[13px] hover:bg-zinc-800 hover:shadow-lg hover:shadow-zinc-900/10 transition-all active:scale-95 cursor-pointer">
-            {isExportingPDF ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />} PDF
+          <button onClick={handleExportPDF} disabled={isExportingPDF} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-[13px] hover:bg-slate-900 shadow-md transition-all active:scale-95 disabled:opacity-70">
+            {isExportingPDF ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Cetak PDF
           </button>
         </div>
       </div>
 
-      {/* Filters Card */}
-      <div className="bg-white p-6 rounded-[24px] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)] border border-zinc-100">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-x-5 gap-y-2">
+      <div className="bg-white p-6 rounded-[20px] shadow-sm border border-slate-200/80">
+        <div className="flex items-center gap-2.5 mb-5 border-b border-slate-100 pb-4">
+          <Filter size={18} className="text-slate-400" />
+          <h2 className="text-[15px] font-bold text-slate-800">Filter Data</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <Input label="Mulai" type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} />
           <Input label="Selesai" type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} />
           <Select label="Tipe" name="type" value={filters.type} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Tipe' }, { value: 'IN', label: 'Masuk' }, { value: 'OUT', label: 'Keluar' }]} />
-          <Select label="Perusahaan" name="perusahaanId" value={filters.perusahaanId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Perusahaan' }, ...(companies?.map((c: any) => ({ value: c.id, label: c.nama })) || [])]} />
-          <Select label="Proyek" name="projectId" value={filters.projectId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Proyek' }, ...(projects?.map((p: any) => ({ value: p.id, label: p.name })) || [])]} />
-          <Select label="Jabatan" name="role" value={filters.role} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Jabatan' }, ...(roles?.map((r: any) => ({ value: r.name, label: r.name })) || [])]} />
+          <Select label="Perusahaan" name="perusahaanId" value={filters.perusahaanId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(companies?.map((c: any) => ({ value: c.id, label: c.nama })) || [])]} />
+          <Select label="Proyek" name="projectId" value={filters.projectId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(projects?.map((p: any) => ({ value: p.id, label: p.name })) || [])]} />
+          <Select label="Jabatan" name="role" value={filters.role} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(roles?.map((r: any) => ({ value: r.name, label: r.name })) || [])]} />
         </div>
       </div>
 
-      {/* Table Area */}
-      <div ref={tableRef}>
+      <div>
         <DataTable
           title="Log Kehadiran"
           columns={columns}
           data={data?.items || []}
           serverSide
           searchTerm={filters.search}
-          onSearchChange={(s) => setFilters(f => ({ ...f, search: s }))}
+          onSearchChange={(s) => setFilters(f => ({ ...f, search: s, page: 1 }))}
+          page={filters.page}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
         />
-
-        {/* Manual Pagination Info */}
-        <div className="mt-4 flex justify-between items-center px-2">
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Total Record: {data?.items.length || 0}</span>
-          <div className="flex gap-2">
-            <button onClick={handlePrevPage} disabled={cursorHistory.length === 0} className="p-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-500 disabled:opacity-30 cursor-pointer hover:bg-zinc-50 hover:text-zinc-900 transition-colors"><ChevronLeft size={18} strokeWidth={2.5} /></button>
-            <button onClick={handleNextPage} disabled={!data?.meta.hasNextPage} className="p-2.5 rounded-xl bg-zinc-900 text-white disabled:opacity-30 cursor-pointer hover:bg-zinc-800 transition-colors shadow-md shadow-zinc-900/10"><ChevronRight size={18} strokeWidth={2.5} /></button>
-          </div>
-        </div>
       </div>
 
-      {/* Modal Detail Absensi */}
       <Modal isOpen={!!selectedAttendance} onClose={() => setSelectedAttendance(null)} title="Detail Validasi Kehadiran">
         {selectedAttendance && (
-          <div className="flex flex-col md:flex-row gap-8">
-            {/* Foto Biometrik */}
+          <div className="flex flex-col md:flex-row gap-6">
             <div className="w-full md:w-2/5">
-              <div className="rounded-3xl overflow-hidden border-[8px] border-white shadow-xl shadow-zinc-200/50 aspect-[3/4] bg-zinc-100 relative group">
+              <div className="rounded-2xl overflow-hidden border-[6px] border-white shadow-lg aspect-[3/4] bg-slate-100 relative">
                 {selectedAttendance.capturedImageUrl ? (
                   <img src={selectedAttendance.capturedImageUrl} className="w-full h-full object-cover" alt="Captured Biometric" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center flex-col text-zinc-400 gap-3">
-                    <UserCircle2 size={64} strokeWidth={1} />
+                  <div className="w-full h-full flex items-center justify-center flex-col text-slate-400 gap-3">
+                    <UserCircle2 size={56} strokeWidth={1.5} />
                     <span className="text-sm font-medium">Foto tidak tersedia</span>
                   </div>
                 )}
-                <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md p-3.5 rounded-2xl border border-white shadow-sm flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Confidence Score</span>
-                  <span className="text-sm font-black text-zinc-900">{selectedAttendance.confidence ? `${(selectedAttendance.confidence * 100).toFixed(1)}%` : 'N/A'}</span>
+                <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-sm flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Confidence Score</span>
+                  <span className="text-sm font-black text-slate-800">{selectedAttendance.confidence ? `${(selectedAttendance.confidence * 100).toFixed(1)}%` : 'N/A'}</span>
                 </div>
               </div>
             </div>
 
-            {/* Info & Map */}
-            <div className="flex-1 flex flex-col gap-6">
-              <div className="bg-white p-7 rounded-3xl border border-zinc-100 shadow-sm shadow-zinc-100/50">
-                <div className="flex justify-between items-start mb-6">
+            <div className="flex-1 flex flex-col gap-5">
+              <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                <div className="flex justify-between items-start mb-5">
                   <div>
-                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight">{selectedAttendance.userName}</h2>
-                    <p className="font-bold text-zinc-500 mt-1">{selectedAttendance.userRole} <span className="font-normal text-zinc-300 mx-1.5">|</span> {selectedAttendance.userNik || '-'}</p>
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight">{selectedAttendance.userName}</h2>
+                    <p className="font-semibold text-slate-500 mt-1 text-sm">{selectedAttendance.userRole} <span className="font-normal text-slate-300 mx-1.5">|</span> {selectedAttendance.userNik || '-'}</p>
                   </div>
-                  <span className={`px-4 py-2 rounded-xl text-[11px] font-black tracking-widest border ${selectedAttendance.type === 'IN'
-                    ? 'bg-emerald-50/80 text-emerald-600 border-emerald-200/60'
-                    : 'bg-amber-50/80 text-amber-600 border-amber-200/60'
+                  <span className={`px-3 py-1.5 rounded-lg text-[11px] font-black tracking-widest ${selectedAttendance.type === 'IN'
+                    ? 'bg-emerald-100/60 text-emerald-700'
+                    : 'bg-amber-100/60 text-amber-700'
                     }`}>
                     {selectedAttendance.type === 'IN' ? 'MASUK' : 'KELUAR'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-y-6 gap-x-4 pt-6 border-t border-zinc-100">
+                <div className="grid grid-cols-2 gap-y-5 gap-x-4 pt-5 border-t border-slate-200/60">
                   <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Waktu Pencatatan</p>
-                    <p className="text-[14px] font-bold text-zinc-900">{formatDate(selectedAttendance.recordedAt)}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Waktu</p>
+                    <p className="text-[14px] font-bold text-slate-800">{formatDate(selectedAttendance.recordedAt)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Proyek / Lokasi</p>
-                    <p className="text-[14px] font-bold text-zinc-900">{selectedAttendance.projectName || 'Pusat / Tidak ada'}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Proyek/Lokasi</p>
+                    <p className="text-[14px] font-bold text-slate-800">{selectedAttendance.projectName || 'Pusat / Tidak ada'}</p>
                   </div>
-                  <div className="col-span-2 bg-zinc-50 p-4 rounded-2xl border border-zinc-100 mt-2">
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Direkam Oleh</p>
-                    <p className="text-[13px] font-bold text-zinc-700">
-                      {selectedAttendance.recordedByName} <span className="font-medium text-zinc-500">({selectedAttendance.recordedByRole})</span>
+                  <div className="col-span-2 bg-white p-3.5 rounded-xl border border-slate-100 mt-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Direkam Oleh</p>
+                    <p className="text-[13px] font-bold text-slate-700">
+                      {selectedAttendance.recordedByName} <span className="font-medium text-slate-400">({selectedAttendance.recordedByRole})</span>
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Google Maps Embed */}
-              <div className="flex-1 min-h-[220px] flex flex-col">
-                <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2 mb-3 ml-1">
-                  <MapPin size={14} className="text-zinc-400" /> Kordinat GPS
+              <div className="flex-1 min-h-[180px] flex flex-col">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mb-2.5 ml-1">
+                  <MapPin size={14} className="text-slate-400" /> Kordinat GPS
                 </p>
-                <div className="flex-1 rounded-3xl overflow-hidden border border-zinc-200 shadow-inner bg-zinc-100 relative">
-                  {selectedAttendance.latitude && googleMapsKey ? (
+                <div className="flex-1 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 relative">
+                  {selectedAttendance.latitude && selectedAttendance.longitude ? (
                     <iframe
                       width="100%"
                       height="100%"
                       frameBorder="0"
-                      style={{ border: 0, minHeight: '220px' }}
-                      src={`https://www.google.com/maps/embed/v1/place?key=${googleMapsKey}&q=${selectedAttendance.latitude},${selectedAttendance.longitude}&zoom=16`}
+                      style={{ border: 0, minHeight: '180px' }}
+                      src={`https://maps.google.com/maps?q=${selectedAttendance.latitude},${selectedAttendance.longitude}&z=16&output=embed`}
                       allowFullScreen
                     ></iframe>
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-zinc-400 py-10">
-                      <MapPin size={32} className="mb-3 opacity-40" />
-                      <span className="font-bold text-sm">Lokasi GPS tidak tersedia</span>
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                      <MapPin size={28} className="mb-2 opacity-40" />
+                      <span className="font-bold text-xs">Lokasi GPS tidak tersedia</span>
                     </div>
                   )}
                 </div>
               </div>
+
             </div>
           </div>
         )}

@@ -3,8 +3,9 @@ import type { ApiResponse } from "../types/api_response";
 import type {
   Attendance,
   AttendanceHistoryParams,
-  CursorPaginatedData,
+  PaginatedData,
 } from "../types/models/attendance";
+
 export const attendanceService = {
   getHistory: async (params: AttendanceHistoryParams) => {
     const apiParams = { ...params };
@@ -21,9 +22,10 @@ export const attendanceService = {
       ).toISOString();
     }
 
-    const { data } = await api.get<
-      ApiResponse<CursorPaginatedData<Attendance>>
-    >("/attendance/history", { params: apiParams });
+    const { data } = await api.get<ApiResponse<PaginatedData<Attendance>>>(
+      "/attendance/history",
+      { params: apiParams },
+    );
     return data.data;
   },
 };
