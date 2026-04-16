@@ -19,14 +19,24 @@ interface DataTableProps {
   serverSide?: boolean;
   searchTerm?: string;
   onSearchChange?: (val: string) => void;
+
+  // Pagination Offset (Lama)
   page?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+
+  // Pagination Cursor (Baru)
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
+  onNextPage?: () => void;
+  onPrevPage?: () => void;
 }
 
 const DataTable = ({
   title, columns, data, onAdd, onEdit, onDelete, expandedRowRender,
-  serverSide = false, searchTerm = '', onSearchChange, page = 1, totalPages = 1, onPageChange
+  serverSide = false, searchTerm = '', onSearchChange,
+  page = 1, totalPages = 1, onPageChange,
+  hasNextPage, hasPrevPage, onNextPage, onPrevPage
 }: DataTableProps) => {
 
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
@@ -202,22 +212,30 @@ const DataTable = ({
         </table>
       </div>
 
-      {/* Pagination Berbasis Nomor */}
-      {serverSide && totalPages > 1 && (
+      {/* Pagination Dinamis (Offset atau Cursor) */}
+      {serverSide && (totalPages > 1 || hasNextPage !== undefined) && (
         <div className="p-5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
           <span className="text-[13px] font-medium text-slate-500">
-            Halaman <strong className="text-slate-900">{page}</strong> dari <strong className="text-slate-900">{totalPages}</strong>
+            {hasNextPage !== undefined ? (
+              "Navigasi Data Halaman"
+            ) : (
+              <>Halaman <strong className="text-slate-900">{page}</strong> dari <strong className="text-slate-900">{totalPages}</strong></>
+            )}
           </span>
+
           <div className="flex items-center gap-1.5">
+            {/* Prev Button */}
             <button
-              onClick={() => onPageChange?.(page - 1)}
-              disabled={page === 1}
-              className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200"
+              onClick={() => onPrevPage ? onPrevPage() : onPageChange?.(page - 1)}
+              disabled={onPrevPage ? !hasPrevPage : page === 1}
+              className="px-3 py-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200 flex items-center gap-1.5"
             >
               <ChevronLeft size={18} />
+              {hasNextPage !== undefined && <span className="text-sm font-semibold">Prev</span>}
             </button>
 
-            {getPageNumbers().map((num, idx) => (
+            {/* Offset Pagination Numbers (Disembunyikan jika mode Cursor aktif) */}
+            {hasNextPage === undefined && getPageNumbers().map((num, idx) => (
               num === "..." ? (
                 <span key={idx} className="px-2 text-slate-400 font-bold tracking-widest">...</span>
               ) : (
@@ -234,11 +252,13 @@ const DataTable = ({
               )
             ))}
 
+            {/* Next Button */}
             <button
-              onClick={() => onPageChange?.(page + 1)}
-              disabled={page === totalPages}
-              className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200"
+              onClick={() => onNextPage ? onNextPage() : onPageChange?.(page + 1)}
+              disabled={onNextPage ? !hasNextPage : page === totalPages}
+              className="px-3 py-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200 flex items-center gap-1.5"
             >
+              {hasNextPage !== undefined && <span className="text-sm font-semibold">Next</span>}
               <ChevronRight size={18} />
             </button>
           </div>

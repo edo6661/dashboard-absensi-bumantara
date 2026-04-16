@@ -21,31 +21,50 @@ const AttendanceRecap = () => {
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: async () => (await api.get('/projects')).data.data });
   const { data: companies } = useQuery({ queryKey: ['perusahaan'], queryFn: async () => (await api.get('/perusahaan')).data.data });
 
+  // State filters
   const [filters, setFilters] = useState<AttendanceHistoryParams>({
-    limit: 10, page: 1, search: '', type: '', sortOrder: 'desc',
+    limit: 10, search: '', type: '', sortOrder: 'desc', cursor: undefined,
     startDate: getTodayDateString(), endDate: getTodayDateString(),
     role: '', projectId: '', perusahaanId: '',
   });
+
+  // State untuk menyimpan history cursor agar tombol Prev berfungsi
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
 
   const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   const { data } = useAttendanceHistory(filters);
 
+  // Jika filter terganti (misal tanggal, tipe dll), Reset cursor kembali ke halaman awal
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value, page: 1 }));
+    setFilters(prev => ({ ...prev, [name]: value, cursor: undefined }));
+    setCursorHistory([]);
   };
 
-  const handlePageChange = (newPage: number) => {
-    setFilters(prev => ({ ...prev, page: newPage }));
+  // Navigasi Next/Prev
+  const handleNextPage = () => {
+    if (data?.meta?.nextCursor) {
+      setCursorHistory(prev => [...prev, filters.cursor || '']);
+      setFilters(prev => ({ ...prev, cursor: data.meta.nextCursor! }));
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (cursorHistory.length > 0) {
+      const newHistory = [...cursorHistory];
+      const prevCursor = newHistory.pop();
+      setCursorHistory(newHistory);
+      setFilters(prev => ({ ...prev, cursor: prevCursor === '' ? undefined : prevCursor }));
+    }
   };
 
   const handleExportExcel = async () => {
     try {
-      const exportParams = { ...filters, limit: 10000, page: 1 };
+      // Hilangkan cursor agar backend fetch semua data dari awal tanpa offset cursor
+      const exportParams = { ...filters, limit: 10000, cursor: undefined };
 
-      // PERBAIKAN: Gunakan attendanceService agar format ISO otomatis tertangani
       const response = await attendanceService.getHistory(exportParams);
       const allItems: Attendance[] = response.items;
 
@@ -81,9 +100,8 @@ const AttendanceRecap = () => {
   const handleExportPDF = async () => {
     setIsExportingPDF(true);
     try {
-      const exportParams = { ...filters, limit: 10000, page: 1 };
+      const exportParams = { ...filters, limit: 10000, cursor: undefined };
 
-      // PERBAIKAN: Gunakan attendanceService agar format ISO otomatis tertangani
       const response = await attendanceService.getHistory(exportParams);
       const allItems: Attendance[] = response.items;
 
@@ -126,6 +144,7 @@ const AttendanceRecap = () => {
       setIsExportingPDF(false);
     }
   };
+
   const columns = [
     {
       header: 'Preview',
@@ -179,11 +198,6 @@ const AttendanceRecap = () => {
     }
   ];
 
-  // Logic aman untuk mendeteksi total halaman
-  const totalPages = data?.meta?.total
-    ? Math.ceil(data.meta.total / (filters.limit || 10))
-    : (data?.meta?.lastPage || 1);
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white px-8 py-4 rounded-xl">
@@ -224,10 +238,15 @@ const AttendanceRecap = () => {
           data={data?.items || []}
           serverSide
           searchTerm={filters.search}
-          onSearchChange={(s) => setFilters(f => ({ ...f, search: s, page: 1 }))}
-          page={filters.page}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
+          onSearchChange={(s) => {
+            setFilters(f => ({ ...f, search: s, cursor: undefined })); // Reset search reset cursor
+            setCursorHistory([]);
+          }}
+          // Passing prop Cursor Navigasi
+          hasNextPage={data?.meta?.hasNextPage}
+          hasPrevPage={cursorHistory.length > 0}
+          onNextPage={handleNextPage}
+          onPrevPage={handlePrevPage}
         />
       </div>
 

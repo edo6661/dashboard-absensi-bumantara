@@ -1,56 +1,4 @@
-tolong pagination nya jadi pakai nomor.
-terus juga tolong, ini export excel nya tidak semua data sesuai dengan filter, terus juga nik di export excel nya gini value nya:
-3.20101E+15
-terus juga export pdf nya tidak benar, jelek, masa ada search dan scroll nya.
-<file path="package.json">
-{
-  "name": "bumantara-absensi",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@tailwindcss/vite": "^4.2.0",
-    "@tanstack/react-query": "^5.96.2",
-    "axios": "^1.15.0",
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.38.0",
-    "html-to-image": "^1.11.13",
-    "i18next": "^25.8.11",
-    "jspdf": "^4.2.1",
-    "lucide-react": "^0.575.0",
-    "motion": "^12.34.2",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-qr-code": "^2.0.18",
-    "react-router-dom": "^7.13.2",
-    "react-signature-canvas": "^1.1.0-alpha.2",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@tanstack/react-query-devtools": "^5.96.2",
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
-    "@types/react-signature-canvas": "^1.0.7",
-    "@vitejs/plugin-react-swc": "^4.2.2",
-    "eslint": "^9.39.1",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
-    "globals": "^16.5.0",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.48.0",
-    "vite": "^7.3.1"
-  }
-}
-</file>
+kode frontend:
 
 <file path="src/App.tsx">
 // src/App.tsx
@@ -60,7 +8,7 @@ import PageLoader from './pages/PageLoader';
 import RootLayout from './components/layouts/RootLayout';
 import { useAuth } from './context/AuthContext';
 import { AuthProvider } from './providers/AuthProvider';
-import { QueryProvider } from './providers/QueryProvider';
+import { QueryProvider } from './providers/QueryProvider';  
 
 const Login = lazy(() => import('./pages/Login'));
 const Home = lazy(() => import('./pages/Home'));
@@ -95,59 +43,6 @@ const App = () => {
 };
 
 export default App;
-</file>
-
-<file path="src/components/layouts/RootLayout.tsx">
-// src/components/layouts/RootLayout.tsx
-import { Outlet } from 'react-router-dom';
-import Sidebar from '../Sidebar';
-import Navbar from '../Navbar';
-
-const RootLayout = () => {
-  return (
-    <div className="flex min-h-screen bg-[var(--theme-background)]">
-      <Sidebar />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <Navbar />
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
-            <Outlet />
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-};
-
-export default RootLayout;
-</file>
-
-<file path="src/components/Navbar.tsx">
-// src/components/Navbar.tsx
-import { useLocation } from 'react-router-dom';
-import { Bell, ChevronDown } from 'lucide-react';
-
-const Navbar = () => {
-  const location = useLocation();
-
-  const getPageTitle = () => {
-    if (location.pathname === '/') return 'Dashboard';
-    if (location.pathname.includes('/attendance/recap')) return 'Rekap Absensi';
-    return 'Bumantara ERP';
-  };
-
-  return (
-    <header className="h-[76px] px-8 flex items-center justify-between bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-sm/50">
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-black text-slate-800 tracking-tight">
-          {getPageTitle()}
-        </h1>
-      </div>
-    </header>
-  );
-};
-
-export default Navbar;
 </file>
 
 <file path="src/components/shared/CurrencyInput.tsx">
@@ -197,260 +92,6 @@ const CurrencyInput = ({ label, error, value, onValueChange, name, ...props }: C
   );
 };
 export default CurrencyInput;
-</file>
-
-<file path="src/components/shared/DataTable.tsx">
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, FileX2, ChevronRight, ChevronDown, ChevronLeft } from 'lucide-react';
-
-interface Column {
-  header: string;
-  accessor: string;
-  render?: (value: any, row: any) => React.ReactNode;
-}
-
-interface DataTableProps {
-  title: string;
-  columns: Column[];
-  data: any[];
-  onAdd?: () => void;
-  onEdit?: (item: any) => void;
-  onDelete?: (item: any) => void;
-  expandedRowRender?: (row: any) => React.ReactNode;
-  serverSide?: boolean;
-  searchTerm?: string;
-  onSearchChange?: (val: string) => void;
-  page?: number;
-  totalPages?: number;
-  onPageChange?: (page: number) => void;
-}
-
-const DataTable = ({
-  title, columns, data, onAdd, onEdit, onDelete, expandedRowRender,
-  serverSide = false, searchTerm = '', onSearchChange, page = 1, totalPages = 1, onPageChange
-}: DataTableProps) => {
-
-  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
-  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
-
-  useEffect(() => {
-    if (serverSide && onSearchChange) {
-      const timeoutId = setTimeout(() => {
-        if (localSearchTerm !== searchTerm) {
-          onSearchChange(localSearchTerm);
-        }
-      }, 500);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [localSearchTerm, serverSide, onSearchChange, searchTerm]);
-
-  const toggleRow = (rowIndex: number) => {
-    setExpandedRows((prev) => ({ ...prev, [rowIndex]: !prev[rowIndex] }));
-  };
-
-  const filteredData = useMemo(() => {
-    if (serverSide) return data;
-    if (!localSearchTerm) return data;
-
-    const lowercasedTerm = localSearchTerm.toLowerCase();
-    return data.filter((row) => {
-      return columns.some((col) => {
-        const value = row[col.accessor];
-        if (value == null) return false;
-        return String(value).toLowerCase().includes(lowercasedTerm);
-      });
-    });
-  }, [data, localSearchTerm, columns, serverSide]);
-
-  const totalCols = columns.length + (expandedRowRender ? 1 : 0) + (onEdit || onDelete ? 1 : 0);
-
-  const getPageNumbers = () => {
-    const delta = 1;
-    const range = [];
-    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
-      range.push(i);
-    }
-    if (page - delta > 2) range.unshift("...");
-    if (page + delta < totalPages - 1) range.push("...");
-    range.unshift(1);
-    if (totalPages > 1) range.push(totalPages);
-    return range;
-  };
-
-  return (
-    <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden flex flex-col transition-all duration-300">
-
-      {/* Header Tabel */}
-      <div className="p-6 md:px-8 md:py-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 border-b border-slate-100">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h2>
-            {!serverSide && (
-              <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-slate-200/60">
-                {filteredData.length} Data
-              </span>
-            )}
-          </div>
-          <p className="text-[13px] text-slate-500 font-medium">Kelola dan pantau informasi operasional secara real-time.</p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-          <div className="relative w-full sm:w-72 group">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
-            <input
-              type="text"
-              placeholder="Cari data..."
-              value={localSearchTerm}
-              onChange={(e) => setLocalSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-600/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
-            />
-          </div>
-
-          {onAdd && (
-            <button
-              onClick={onAdd}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/20 transition-all duration-300 font-bold text-[13px] active:scale-95 cursor-pointer"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-              Tambah Data
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full text-sm text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50/50 text-slate-500 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200/60">
-              {expandedRowRender && <th className="px-4 py-4 w-10 text-center"></th>}
-              {columns.map((col, index) => (
-                <th key={index} className="px-6 py-4 whitespace-nowrap">
-                  {col.header}
-                </th>
-              ))}
-              {(onEdit || onDelete) && (
-                <th className="px-6 py-4 text-center whitespace-nowrap w-24">Aksi</th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredData.length > 0 ? (
-              filteredData.map((row, rowIndex) => {
-                const isExpanded = !!expandedRows[rowIndex];
-                return (
-                  <React.Fragment key={rowIndex}>
-                    <tr
-                      onClick={() => {
-                        if (expandedRowRender) toggleRow(rowIndex);
-                      }}
-                      className={`transition-colors duration-200 group ${expandedRowRender ? 'cursor-pointer hover:bg-slate-50/80' : 'hover:bg-slate-50/50'} ${isExpanded ? 'bg-slate-50/80' : ''}`}
-                    >
-                      {expandedRowRender && (
-                        <td className="px-4 py-4 text-center text-slate-400 group-hover:text-slate-600 transition-colors">
-                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                        </td>
-                      )}
-                      {columns.map((col, colIndex) => (
-                        <td key={colIndex} className="px-6 py-4 text-slate-700 whitespace-nowrap font-medium">
-                          {col.render ? col.render(row[col.accessor], row) : row[col.accessor]}
-                        </td>
-                      ))}
-                      {(onEdit || onDelete) && (
-                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            {onEdit && (
-                              <button onClick={() => onEdit(row)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer">
-                                <Edit2 size={16} />
-                              </button>
-                            )}
-                            {onDelete && (
-                              <button onClick={() => onDelete(row)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer">
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                    {isExpanded && expandedRowRender && (
-                      <tr className="bg-slate-50/30">
-                        <td colSpan={totalCols} className="px-6 py-6 border-b border-slate-100">
-                          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                            {expandedRowRender(row)}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={totalCols} className="px-6 py-24 text-center">
-                  <div className="flex flex-col items-center max-w-sm mx-auto">
-                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
-                      <FileX2 size={28} className="text-slate-400" />
-                    </div>
-                    <h3 className="text-slate-800 font-bold mb-1">Data tidak ditemukan</h3>
-                    <p className="text-slate-500 text-[13px] font-medium leading-relaxed">
-                      Coba sesuaikan filter atau kata kunci pencarian Anda untuk menemukan data.
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination Berbasis Nomor */}
-      {serverSide && totalPages > 1 && (
-        <div className="p-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/30">
-          <span className="text-[12px] font-semibold text-slate-500">
-            Halaman <strong className="text-slate-800">{page}</strong> dari <strong className="text-slate-800">{totalPages}</strong>
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onPageChange?.(page - 1)}
-              disabled={page === 1}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-200/50 hover:text-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            {getPageNumbers().map((num, idx) => (
-              num === "..." ? (
-                <span key={idx} className="px-2 text-slate-400 font-bold tracking-widest">...</span>
-              ) : (
-                <button
-                  key={idx}
-                  onClick={() => onPageChange?.(num as number)}
-                  className={`min-w-[32px] h-8 flex items-center justify-center rounded-lg text-[13px] font-bold transition-all cursor-pointer ${page === num
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
-                    }`}
-                >
-                  {num}
-                </button>
-              )
-            ))}
-
-            <button
-              onClick={() => onPageChange?.(page + 1)}
-              disabled={page === totalPages}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-200/50 hover:text-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default DataTable;
 </file>
 
 <file path="src/components/shared/FileInput.tsx">
@@ -662,82 +303,6 @@ const Select = ({ label, options, error, ...props }: SelectProps) => {
 export default Select;
 </file>
 
-<file path="src/components/Sidebar.tsx">
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, LogOut } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-
-const Sidebar = () => {
-  const { logout } = useAuth();
-  const location = useLocation();
-
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Rekap Absensi', path: '/attendance/recap', icon: ClipboardList },
-  ];
-
-  return (
-    <aside className="w-[280px] bg-white border-r border-slate-200/80 h-screen sticky top-0 flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-      <div className="p-6">
-        {/* Logo Section */}
-        <div className="flex items-center gap-3.5 mb-8 text-slate-900 cursor-pointer group">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform duration-300">
-            B
-          </div>
-          <div>
-            <span className="font-black text-xl tracking-tight leading-none block text-slate-800">Bumantara</span>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">ERP System</span>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="space-y-1.5">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-3">Menu Utama</p>
-          {navItems.map((item) => {
-            // Logika active state yang lebih aman
-            const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`group flex items-center gap-3 px-3.5 py-3 rounded-xl text-[14px] font-semibold transition-all duration-300 relative overflow-hidden ${isActive
-                  ? 'bg-indigo-50/80 text-indigo-700'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-                  }`}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600 rounded-r-full"></span>
-                )}
-                <item.icon
-                  size={20}
-                  strokeWidth={isActive ? 2.5 : 2}
-                  className={`transition-transform duration-300 ${isActive ? 'scale-110 text-indigo-600' : 'group-hover:scale-110 group-hover:text-slate-700'}`}
-                />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Footer / Logout */}
-      <div className="mt-auto p-6">
-        <button
-          onClick={logout}
-          className="flex items-center gap-3 px-3.5 py-3 w-full text-left rounded-xl text-[14px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-300 cursor-pointer group"
-        >
-          <LogOut size={20} strokeWidth={2} className="group-hover:-translate-x-1 transition-transform" />
-          Keluar Sistem
-        </button>
-      </div>
-    </aside>
-  );
-};
-
-export default Sidebar;
-</file>
-
 <file path="src/context/AuthContext.tsx">
 import { createContext, useContext } from 'react';
 import type { ActionResult } from '../types/common';
@@ -888,96 +453,6 @@ export const useForm = <T>(
 };
 </file>
 
-<file path="src/index.css">
-@import "tailwindcss";
-
-@theme {
-  --font-sans: "Montserrat", system-ui, sans-serif;
-  --font-heading: "", var(--font-sans);
-
-  --radius-btn: 10px;
-  --radius-card: 20px;
-
-  --color-sidebar-bg: var(--sidebar-bg);
-  --color-sidebar-text: var(--sidebar-text);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-hover-bg: var(--sidebar-hover-bg);
-  --color-sidebar-active-bg: var(--sidebar-active-bg);
-  --color-sidebar-active-text: var(--sidebar-active-text);
-}
-
-/* Update pada bagian :root di src/index.css */
-:root {
-  --section-padding-y: 6rem;
-  --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Background utama dibuat Slate 100 agar lebih redup dan teduh */
-  --theme-background: #f1f5f9;
-  --theme-foreground: #1e293b;
-
-  /* Sidebar menggunakan Slate 50 (Off-white sejuk), hindari #ffffff */
-  --sidebar-bg: #f8fafc;
-  --sidebar-text: #64748b;
-  --sidebar-border: #e2e8f0;
-  --sidebar-hover-bg: #f1f5f9;
-  --sidebar-active-bg: #e0e7ff;
-  --sidebar-active-text: #4338ca;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --theme-background: #0f172a; /* Slate 900 */
-    --theme-foreground: #f8fafc;
-
-    --sidebar-bg: #0f172a;
-    --sidebar-text: #94a3b8;
-    --sidebar-border: #1e293b;
-    --sidebar-hover-bg: #1e293b;
-    --sidebar-active-bg: #1e1b4b; /* Deep indigo */
-    --sidebar-active-text: #818cf8;
-  }
-}
-
-html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
-}
-
-body {
-  background-color: var(--theme-background);
-  color: var(--theme-foreground);
-  font-family: var(--font-sans);
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-heading);
-  letter-spacing: -0.03em;
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1; /* Slate 300 */
-  border-radius: 20px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8; /* Slate 400 */
-}
-</file>
-
 <file path="src/lib/axios.ts">
 import axios from "axios";
 import { storage } from "../utils/storage";
@@ -1019,277 +494,6 @@ import './index.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <App />
 );
-</file>
-
-<file path="src/pages/Attendance/AttendanceRecap.tsx">
-import { useState, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { toPng } from 'html-to-image';
-import jsPDF from 'jspdf';
-import { Download, FileSpreadsheet, Loader2, MapPin, Maximize2, UserCircle2, Filter } from 'lucide-react';
-
-import { useAttendanceHistory } from '../../hooks/useAttendance';
-import api from '../../lib/axios';
-import DataTable from '../../components/shared/DataTable';
-import Select from '../../components/shared/Select';
-import Input from '../../components/shared/Input';
-import Modal from '../../components/shared/Modal';
-import { formatDate } from '../../utils/formatters';
-import type { Attendance, AttendanceHistoryParams } from '../../types/models/attendance';
-
-const getTodayDateString = () => new Date().toISOString().split('T')[0];
-
-const AttendanceRecap = () => {
-  const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: async () => (await api.get('/roles')).data.data });
-  const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: async () => (await api.get('/projects')).data.data });
-  const { data: companies } = useQuery({ queryKey: ['perusahaan'], queryFn: async () => (await api.get('/perusahaan')).data.data });
-
-  const [filters, setFilters] = useState<AttendanceHistoryParams>({
-    limit: 10, page: 1, search: '', type: '', sortOrder: 'desc',
-    startDate: getTodayDateString(), endDate: getTodayDateString(),
-    role: '', projectId: '', perusahaanId: '',
-  });
-
-  const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
-  const [isExportingPDF, setIsExportingPDF] = useState(false);
-  const tableRef = useRef<HTMLDivElement>(null);
-
-  const { data } = useAttendanceHistory(filters);
-
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value, page: 1 }));
-  };
-
-  const handlePageChange = (newPage: number) => {
-    setFilters(prev => ({ ...prev, page: newPage }));
-  };
-
-  const handleExportExcel = () => {
-    if (!data?.items.length) return;
-    const headers = ['Nama', 'NIK', 'Tipe', 'Waktu', 'Proyek', 'Lokasi'];
-    const rows = data.items.map(item => [
-      `"${item.userName}"`,
-      `"${item.userNik || '-'}"`,
-      `"${item.type}"`,
-      `"${formatDate(item.recordedAt)}"`,
-      `"${item.projectName || '-'}"`,
-      `"${item.latitude || ''},${item.longitude || ''}"`
-    ].join(','));
-    const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Absensi_${filters.startDate}.csv`;
-    link.click();
-  };
-
-  const handleExportPDF = async () => {
-    if (!tableRef.current) return;
-    setIsExportingPDF(true);
-    try {
-      const dataUrl = await toPng(tableRef.current, { backgroundColor: '#f8fafc', pixelRatio: 2 });
-      const pdf = new jsPDF('l', 'mm', 'a4');
-      const width = pdf.internal.pageSize.getWidth();
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const printHeight = (imgProps.height * (width - 20)) / imgProps.width;
-      pdf.addImage(dataUrl, 'PNG', 10, 10, width - 20, printHeight);
-      pdf.save(`Absensi_${filters.startDate}.pdf`);
-    } finally {
-      setIsExportingPDF(false);
-    }
-  };
-
-  const columns = [
-    {
-      header: 'Preview',
-      accessor: 'capturedImageUrl',
-      render: (val: string, row: Attendance) => (
-        <div
-          className="relative w-11 h-11 rounded-lg overflow-hidden cursor-pointer group border border-slate-200/80 shadow-sm"
-          onClick={() => setSelectedAttendance(row)}
-        >
-          {val ? (
-            <img src={val} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Preview" />
-          ) : (
-            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-              <UserCircle2 className="text-slate-400" size={24} />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
-            <Maximize2 size={16} className="text-white" />
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: 'Pegawai',
-      accessor: 'userName',
-      render: (val: string, row: Attendance) => (
-        <div className="cursor-pointer group" onClick={() => setSelectedAttendance(row)}>
-          <p className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{val}</p>
-          <p className="text-[12px] text-slate-500 font-medium mt-0.5">{row.userRole} <span className="mx-1 text-slate-300">•</span> {row.userNik || 'No NIK'}</p>
-        </div>
-      )
-    },
-    {
-      header: 'Status',
-      accessor: 'type',
-      render: (val: string) => (
-        <span className={`px-2.5 py-1 text-[11px] font-bold rounded-md tracking-wide ${val === 'IN' ? 'bg-emerald-100/60 text-emerald-700' : 'bg-amber-100/60 text-amber-700'}`}>
-          {val === 'IN' ? 'MASUK' : 'KELUAR'}
-        </span>
-      )
-    },
-    {
-      header: 'Waktu',
-      accessor: 'recordedAt',
-      render: (val: string) => <span className="text-[13px] font-semibold text-slate-700">{formatDate(val)}</span>
-    },
-    {
-      header: 'Proyek',
-      accessor: 'projectName',
-      render: (val: string) => <span className="text-[13px] font-medium text-slate-600">{val || '-'}</span>
-    }
-  ];
-
-  // Logic aman untuk mendeteksi total halaman
-  const totalPages = data?.meta?.total
-    ? Math.ceil(data.meta.total / (filters.limit || 10))
-    : (data?.meta?.lastPage || 1);
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white px-8 py-4 rounded-xl">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Rekap Absensi</h1>
-          <p className="text-slate-500 text-[14px] font-medium mt-1">Sistem pemantauan kehadiran real-time.</p>
-        </div>
-        <div className="flex gap-3 w-full md:w-auto">
-          <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-95">
-            <FileSpreadsheet size={16} className="text-emerald-600" /> Export Excel
-          </button>
-          <button onClick={handleExportPDF} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-[13px] hover:bg-slate-900 shadow-md transition-all active:scale-95">
-            {isExportingPDF ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Cetak PDF
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-[20px] shadow-sm border border-slate-200/80">
-        <div className="flex items-center gap-2.5 mb-5 border-b border-slate-100 pb-4">
-          <Filter size={18} className="text-slate-400" />
-          <h2 className="text-[15px] font-bold text-slate-800">Filter Data</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <Input label="Mulai" type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} />
-          <Input label="Selesai" type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} />
-          <Select label="Tipe" name="type" value={filters.type} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Tipe' }, { value: 'IN', label: 'Masuk' }, { value: 'OUT', label: 'Keluar' }]} />
-          <Select label="Perusahaan" name="perusahaanId" value={filters.perusahaanId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(companies?.map((c: any) => ({ value: c.id, label: c.nama })) || [])]} />
-          <Select label="Proyek" name="projectId" value={filters.projectId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(projects?.map((p: any) => ({ value: p.id, label: p.name })) || [])]} />
-          <Select label="Jabatan" name="role" value={filters.role} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(roles?.map((r: any) => ({ value: r.name, label: r.name })) || [])]} />
-        </div>
-      </div>
-
-      <div ref={tableRef}>
-        <DataTable
-          title="Log Kehadiran"
-          columns={columns}
-          data={data?.items || []}
-          serverSide
-          searchTerm={filters.search}
-          onSearchChange={(s) => setFilters(f => ({ ...f, search: s, page: 1 }))}
-          page={filters.page}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
-      </div>
-
-      <Modal isOpen={!!selectedAttendance} onClose={() => setSelectedAttendance(null)} title="Detail Validasi Kehadiran">
-        {selectedAttendance && (
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-full md:w-2/5">
-              <div className="rounded-2xl overflow-hidden border-[6px] border-white shadow-lg aspect-[3/4] bg-slate-100 relative">
-                {selectedAttendance.capturedImageUrl ? (
-                  <img src={selectedAttendance.capturedImageUrl} className="w-full h-full object-cover" alt="Captured Biometric" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center flex-col text-slate-400 gap-3">
-                    <UserCircle2 size={56} strokeWidth={1.5} />
-                    <span className="text-sm font-medium">Foto tidak tersedia</span>
-                  </div>
-                )}
-                <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-sm flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Confidence Score</span>
-                  <span className="text-sm font-black text-slate-800">{selectedAttendance.confidence ? `${(selectedAttendance.confidence * 100).toFixed(1)}%` : 'N/A'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 flex flex-col gap-5">
-              <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                <div className="flex justify-between items-start mb-5">
-                  <div>
-                    <h2 className="text-xl font-black text-slate-800 tracking-tight">{selectedAttendance.userName}</h2>
-                    <p className="font-semibold text-slate-500 mt-1 text-sm">{selectedAttendance.userRole} <span className="font-normal text-slate-300 mx-1.5">|</span> {selectedAttendance.userNik || '-'}</p>
-                  </div>
-                  <span className={`px-3 py-1.5 rounded-lg text-[11px] font-black tracking-widest ${selectedAttendance.type === 'IN'
-                    ? 'bg-emerald-100/60 text-emerald-700'
-                    : 'bg-amber-100/60 text-amber-700'
-                    }`}>
-                    {selectedAttendance.type === 'IN' ? 'MASUK' : 'KELUAR'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-y-5 gap-x-4 pt-5 border-t border-slate-200/60">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Waktu</p>
-                    <p className="text-[14px] font-bold text-slate-800">{formatDate(selectedAttendance.recordedAt)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Proyek/Lokasi</p>
-                    <p className="text-[14px] font-bold text-slate-800">{selectedAttendance.projectName || 'Pusat / Tidak ada'}</p>
-                  </div>
-                  <div className="col-span-2 bg-white p-3.5 rounded-xl border border-slate-100 mt-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Direkam Oleh</p>
-                    <p className="text-[13px] font-bold text-slate-700">
-                      {selectedAttendance.recordedByName} <span className="font-medium text-slate-400">({selectedAttendance.recordedByRole})</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 min-h-[180px] flex flex-col">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mb-2.5 ml-1">
-                  <MapPin size={14} className="text-slate-400" /> Kordinat GPS
-                </p>
-                <div className="flex-1 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 relative">
-                  {selectedAttendance.latitude && selectedAttendance.longitude ? (
-                    <iframe
-                      width="100%"
-                      height="100%"
-                      frameBorder="0"
-                      style={{ border: 0, minHeight: '180px' }}
-                      src={`https://maps.google.com/maps?q=${selectedAttendance.latitude},${selectedAttendance.longitude}&z=16&output=embed`}
-                      allowFullScreen
-                    ></iframe>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                      <MapPin size={28} className="mb-2 opacity-40" />
-                      <span className="font-bold text-xs">Lokasi GPS tidak tersedia</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-          </div>
-        )}
-      </Modal>
-    </div>
-  );
-};
-
-export default AttendanceRecap;
 </file>
 
 <file path="src/pages/Dashboard.tsx">
@@ -1516,40 +720,6 @@ export const QueryProvider = ({ children }: { children: ReactNode }) => {
 };
 </file>
 
-<file path="src/services/attendance.service.ts">
-import api from "../lib/axios";
-import type { ApiResponse } from "../types/api_response";
-import type {
-  Attendance,
-  AttendanceHistoryParams,
-  PaginatedData,
-} from "../types/models/attendance";
-
-export const attendanceService = {
-  getHistory: async (params: AttendanceHistoryParams) => {
-    const apiParams = { ...params };
-
-    if (apiParams.startDate) {
-      apiParams.startDate = new Date(
-        `${apiParams.startDate}T00:00:00`,
-      ).toISOString();
-    }
-
-    if (apiParams.endDate) {
-      apiParams.endDate = new Date(
-        `${apiParams.endDate}T23:59:59`,
-      ).toISOString();
-    }
-
-    const { data } = await api.get<ApiResponse<PaginatedData<Attendance>>>(
-      "/attendance/history",
-      { params: apiParams },
-    );
-    return data.data;
-  },
-};
-</file>
-
 <file path="src/services/auth.service.ts">
 import api from "../lib/axios";
 import type { ApiResponse } from "../types/api_response";
@@ -1585,54 +755,6 @@ export interface ActionResult<T = void> {
   message?: string;
   data?: T;
   errors?: FieldError[];
-}
-</file>
-
-<file path="src/types/models/attendance.ts">
-export interface Attendance {
-  id: string;
-  userName: string;
-  userRole: string;
-  userNik: string | null;
-  recordedByName: string;
-  recordedByRole: string;
-  isSelfAttendance: boolean;
-  recordedAt: string;
-  confidence: number | null;
-  capturedImageUrl: string | null;
-  type: "IN" | "OUT";
-  latitude: number | null;
-  longitude: number | null;
-  projectId: string | null;
-  projectName: string | null;
-  message?: string;
-}
-
-export interface AttendanceHistoryParams {
-  limit?: number;
-  page?: number;
-  cursor?: string;
-  search?: string;
-  type?: "IN" | "OUT" | "";
-  sortOrder?: "desc" | "asc";
-  startDate?: string;
-  endDate?: string;
-  role?: string;
-  perusahaanId?: string;
-  projectId?: string;
-}
-
-export interface PaginationMeta {
-  nextCursor?: string | null;
-  hasNextPage?: boolean;
-  total?: number;
-  lastPage?: number;
-  page?: number;
-}
-
-export interface PaginatedData<T> {
-  items: T[];
-  meta: PaginationMeta;
 }
 </file>
 
@@ -1758,6 +880,933 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
 });
+</file>
+
+<file path="package.json">
+{
+  "name": "bumantara-absensi",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.0",
+    "@tanstack/react-query": "^5.96.2",
+    "axios": "^1.15.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "html-to-image": "^1.11.13",
+    "i18next": "^25.8.11",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
+    "lucide-react": "^0.575.0",
+    "motion": "^12.34.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-qr-code": "^2.0.18",
+    "react-router-dom": "^7.13.2",
+    "react-signature-canvas": "^1.1.0-alpha.2",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@tanstack/react-query-devtools": "^5.96.2",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-signature-canvas": "^1.0.7",
+    "@vitejs/plugin-react-swc": "^4.2.2",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.48.0",
+    "vite": "^7.3.1"
+  }
+}
+</file>
+
+<file path="src/components/layouts/RootLayout.tsx">
+// src/components/layouts/RootLayout.tsx
+import { Outlet } from 'react-router-dom';
+import Sidebar from '../Sidebar';
+import Navbar from '../Navbar';
+
+const RootLayout = () => {
+  return (
+    <div className="flex min-h-screen bg-[var(--theme-background)]">
+      <Sidebar />
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <Navbar />
+        <main className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default RootLayout;
+</file>
+
+<file path="src/components/Navbar.tsx">
+// src/components/Navbar.tsx
+import { useLocation } from 'react-router-dom';
+import { Bell, ChevronDown } from 'lucide-react';
+
+const Navbar = () => {
+  const location = useLocation();
+
+  const getPageTitle = () => {
+    if (location.pathname === '/') return 'Dashboard';
+    if (location.pathname.includes('/attendance/recap')) return 'Rekap Absensi';
+    return 'Bumantara ERP';
+  };
+
+  return (
+    <header className="h-[76px] px-8 flex items-center justify-between bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-sm/50">
+      <div className="flex items-center gap-4">
+        <h1 className="text-xl font-black text-slate-800 tracking-tight">
+          {getPageTitle()}
+        </h1>
+      </div>
+    </header>
+  );
+};
+
+export default Navbar;
+</file>
+
+<file path="src/components/shared/DataTable.tsx">
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Search, FileX2, ChevronRight, ChevronDown, ChevronLeft } from 'lucide-react';
+
+interface Column {
+  header: string;
+  accessor: string;
+  render?: (value: any, row: any) => React.ReactNode;
+}
+
+interface DataTableProps {
+  title: string;
+  columns: Column[];
+  data: any[];
+  onAdd?: () => void;
+  onEdit?: (item: any) => void;
+  onDelete?: (item: any) => void;
+  expandedRowRender?: (row: any) => React.ReactNode;
+  serverSide?: boolean;
+  searchTerm?: string;
+  onSearchChange?: (val: string) => void;
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+}
+
+const DataTable = ({
+  title, columns, data, onAdd, onEdit, onDelete, expandedRowRender,
+  serverSide = false, searchTerm = '', onSearchChange, page = 1, totalPages = 1, onPageChange
+}: DataTableProps) => {
+
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    if (serverSide && onSearchChange) {
+      const timeoutId = setTimeout(() => {
+        if (localSearchTerm !== searchTerm) {
+          onSearchChange(localSearchTerm);
+        }
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [localSearchTerm, serverSide, onSearchChange, searchTerm]);
+
+  const toggleRow = (rowIndex: number) => {
+    setExpandedRows((prev) => ({ ...prev, [rowIndex]: !prev[rowIndex] }));
+  };
+
+  const filteredData = useMemo(() => {
+    if (serverSide) return data;
+    if (!localSearchTerm) return data;
+
+    const lowercasedTerm = localSearchTerm.toLowerCase();
+    return data.filter((row) => {
+      return columns.some((col) => {
+        const value = row[col.accessor];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(lowercasedTerm);
+      });
+    });
+  }, [data, localSearchTerm, columns, serverSide]);
+
+  const totalCols = columns.length + (expandedRowRender ? 1 : 0) + (onEdit || onDelete ? 1 : 0);
+
+  const getPageNumbers = () => {
+    const delta = 1;
+    const range = [];
+    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
+      range.push(i);
+    }
+    if (page - delta > 2) range.unshift("...");
+    if (page + delta < totalPages - 1) range.push("...");
+    range.unshift(1);
+    if (totalPages > 1) range.push(totalPages);
+    return range;
+  };
+
+  return (
+    <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden flex flex-col transition-all duration-300">
+
+      {/* Header Tabel */}
+      <div className="p-6 md:px-8 md:py-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 border-b border-slate-100">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <h2 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h2>
+            {!serverSide && (
+              <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-slate-200/60">
+                {filteredData.length} Data
+              </span>
+            )}
+          </div>
+          <p className="text-[13px] text-slate-500 font-medium">Kelola dan pantau informasi operasional secara real-time.</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+          <div className="relative w-full sm:w-72 group">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+            <input
+              type="text"
+              placeholder="Cari data..."
+              value={localSearchTerm}
+              onChange={(e) => setLocalSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-600/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
+            />
+          </div>
+
+          {onAdd && (
+            <button
+              onClick={onAdd}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/20 transition-all duration-300 font-bold text-[13px] active:scale-95 cursor-pointer"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              Tambah Data
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full text-sm text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50/50 text-slate-500 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200/60">
+              {expandedRowRender && <th className="px-4 py-4 w-10 text-center"></th>}
+              {columns.map((col, index) => (
+                <th key={index} className="px-6 py-4 whitespace-nowrap">
+                  {col.header}
+                </th>
+              ))}
+              {(onEdit || onDelete) && (
+                <th className="px-6 py-4 text-center whitespace-nowrap w-24">Aksi</th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredData.length > 0 ? (
+              filteredData.map((row, rowIndex) => {
+                const isExpanded = !!expandedRows[rowIndex];
+                return (
+                  <React.Fragment key={rowIndex}>
+                    <tr
+                      onClick={() => {
+                        if (expandedRowRender) toggleRow(rowIndex);
+                      }}
+                      className={`transition-colors duration-200 group ${expandedRowRender ? 'cursor-pointer hover:bg-slate-50/80' : 'hover:bg-slate-50/50'} ${isExpanded ? 'bg-slate-50/80' : ''}`}
+                    >
+                      {expandedRowRender && (
+                        <td className="px-4 py-4 text-center text-slate-400 group-hover:text-slate-600 transition-colors">
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </td>
+                      )}
+                      {columns.map((col, colIndex) => (
+                        <td key={colIndex} className="px-6 py-4 text-slate-700 whitespace-nowrap font-medium">
+                          {col.render ? col.render(row[col.accessor], row) : row[col.accessor]}
+                        </td>
+                      ))}
+                      {(onEdit || onDelete) && (
+                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {onEdit && (
+                              <button onClick={() => onEdit(row)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer">
+                                <Edit2 size={16} />
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button onClick={() => onDelete(row)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer">
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                    {isExpanded && expandedRowRender && (
+                      <tr className="bg-slate-50/30">
+                        <td colSpan={totalCols} className="px-6 py-6 border-b border-slate-100">
+                          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                            {expandedRowRender(row)}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={totalCols} className="px-6 py-24 text-center">
+                  <div className="flex flex-col items-center max-w-sm mx-auto">
+                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
+                      <FileX2 size={28} className="text-slate-400" />
+                    </div>
+                    <h3 className="text-slate-800 font-bold mb-1">Data tidak ditemukan</h3>
+                    <p className="text-slate-500 text-[13px] font-medium leading-relaxed">
+                      Coba sesuaikan filter atau kata kunci pencarian Anda untuk menemukan data.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination Berbasis Nomor */}
+      {serverSide && totalPages > 1 && (
+        <div className="p-5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
+          <span className="text-[13px] font-medium text-slate-500">
+            Halaman <strong className="text-slate-900">{page}</strong> dari <strong className="text-slate-900">{totalPages}</strong>
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onPageChange?.(page - 1)}
+              disabled={page === 1}
+              className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200"
+            >
+              <ChevronLeft size={18} />
+            </button>
+
+            {getPageNumbers().map((num, idx) => (
+              num === "..." ? (
+                <span key={idx} className="px-2 text-slate-400 font-bold tracking-widest">...</span>
+              ) : (
+                <button
+                  key={idx}
+                  onClick={() => onPageChange?.(num as number)}
+                  className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-[13px] font-bold transition-all cursor-pointer border ${page === num
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-200 hover:text-slate-900'
+                    }`}
+                >
+                  {num}
+                </button>
+              )
+            ))}
+
+            <button
+              onClick={() => onPageChange?.(page + 1)}
+              disabled={page === totalPages}
+              className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DataTable;
+</file>
+
+<file path="src/components/Sidebar.tsx">
+import { Link, useLocation } from 'react-router-dom';
+import { LayoutDashboard, ClipboardList, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
+const Sidebar = () => {
+  const { logout } = useAuth();
+  const location = useLocation();
+
+  const navItems = [
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Rekap Absensi', path: '/attendance/recap', icon: ClipboardList },
+  ];
+
+  return (
+    <aside className="w-[280px] bg-white border-r border-slate-200/80 h-screen sticky top-0 flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      <div className="p-6">
+        {/* Logo Section */}
+        <div className="flex items-center gap-3.5 mb-8 text-slate-900 cursor-pointer group">
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform duration-300">
+            B
+          </div>
+          <div>
+            <span className="font-black text-xl tracking-tight leading-none block text-slate-800">Bumantara</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">ERP System</span>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="space-y-1.5">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-3">Menu Utama</p>
+          {navItems.map((item) => {
+            // Logika active state yang lebih aman
+            const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`group flex items-center gap-3 px-3.5 py-3 rounded-xl text-[14px] font-semibold transition-all duration-300 relative overflow-hidden ${isActive
+                  ? 'bg-indigo-50/80 text-indigo-700'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+              >
+                {isActive && (
+                  <span className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600 rounded-r-full"></span>
+                )}
+                <item.icon
+                  size={20}
+                  strokeWidth={isActive ? 2.5 : 2}
+                  className={`transition-transform duration-300 ${isActive ? 'scale-110 text-indigo-600' : 'group-hover:scale-110 group-hover:text-slate-700'}`}
+                />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Footer / Logout */}
+      <div className="mt-auto p-6">
+        <button
+          onClick={logout}
+          className="flex items-center gap-3 px-3.5 py-3 w-full text-left rounded-xl text-[14px] font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-300 cursor-pointer group"
+        >
+          <LogOut size={20} strokeWidth={2} className="group-hover:-translate-x-1 transition-transform" />
+          Keluar Sistem
+        </button>
+      </div>
+    </aside>
+  );
+};
+
+export default Sidebar;
+</file>
+
+<file path="src/index.css">
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Montserrat", system-ui, sans-serif;
+  --font-heading: "", var(--font-sans);
+
+  --radius-btn: 10px;
+  --radius-card: 20px;
+
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-hover-bg: var(--sidebar-hover-bg);
+  --color-sidebar-active-bg: var(--sidebar-active-bg);
+  --color-sidebar-active-text: var(--sidebar-active-text);
+}
+
+/* Update pada bagian :root di src/index.css */
+:root {
+  --section-padding-y: 6rem;
+  --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Background utama dibuat Slate 100 agar lebih redup dan teduh */
+  --theme-background: #f1f5f9;
+  --theme-foreground: #1e293b;
+
+  /* Sidebar menggunakan Slate 50 (Off-white sejuk), hindari #ffffff */
+  --sidebar-bg: #f8fafc;
+  --sidebar-text: #64748b;
+  --sidebar-border: #e2e8f0;
+  --sidebar-hover-bg: #f1f5f9;
+  --sidebar-active-bg: #e0e7ff;
+  --sidebar-active-text: #4338ca;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --theme-background: #0f172a; /* Slate 900 */
+    --theme-foreground: #f8fafc;
+
+    --sidebar-bg: #0f172a;
+    --sidebar-text: #94a3b8;
+    --sidebar-border: #1e293b;
+    --sidebar-hover-bg: #1e293b;
+    --sidebar-active-bg: #1e1b4b; /* Deep indigo */
+    --sidebar-active-text: #818cf8;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  background-color: var(--theme-background);
+  color: var(--theme-foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.03em;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* Slate 300 */
+  border-radius: 20px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* Slate 400 */
+}
+</file>
+
+<file path="src/pages/Attendance/AttendanceRecap.tsx">
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Download, FileSpreadsheet, Loader2, MapPin, Maximize2, UserCircle2, Filter } from 'lucide-react';
+
+import { useAttendanceHistory } from '../../hooks/useAttendance';
+import api from '../../lib/axios';
+import DataTable from '../../components/shared/DataTable';
+import Select from '../../components/shared/Select';
+import Input from '../../components/shared/Input';
+import Modal from '../../components/shared/Modal';
+import { formatDate } from '../../utils/formatters';
+import type { Attendance, AttendanceHistoryParams } from '../../types/models/attendance';
+import { attendanceService } from '../../services/attendance.service';
+
+const getTodayDateString = () => new Date().toISOString().split('T')[0];
+
+const AttendanceRecap = () => {
+  const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: async () => (await api.get('/roles')).data.data });
+  const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: async () => (await api.get('/projects')).data.data });
+  const { data: companies } = useQuery({ queryKey: ['perusahaan'], queryFn: async () => (await api.get('/perusahaan')).data.data });
+
+  const [filters, setFilters] = useState<AttendanceHistoryParams>({
+    limit: 10, page: 1, search: '', type: '', sortOrder: 'desc',
+    startDate: getTodayDateString(), endDate: getTodayDateString(),
+    role: '', projectId: '', perusahaanId: '',
+  });
+
+  const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  const { data } = useAttendanceHistory(filters);
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value, page: 1 }));
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setFilters(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const exportParams = { ...filters, limit: 10000, page: 1 };
+
+      // PERBAIKAN: Gunakan attendanceService agar format ISO otomatis tertangani
+      const response = await attendanceService.getHistory(exportParams);
+      const allItems: Attendance[] = response.items;
+
+      if (!allItems.length) {
+        alert("Tidak ada data untuk di-export");
+        return;
+      }
+
+      const headers = ['Nama', 'NIK', 'Tipe', 'Waktu', 'Proyek', 'Lokasi'];
+      const rows = allItems.map(item => [
+        `"${item.userName}"`,
+        `="${item.userNik || '-'}"`,
+        `"${item.type === 'IN' ? 'MASUK' : 'KELUAR'}"`,
+        `"${formatDate(item.recordedAt)}"`,
+        `"${item.projectName || '-'}"`,
+        `"${item.latitude || ''}, ${item.longitude || ''}"`
+      ].join(','));
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Rekap_Absensi_${filters.startDate}.csv`;
+      link.click();
+    } catch (error) {
+      console.error("Gagal export Excel", error);
+      alert("Terjadi kesalahan saat mengunduh data.");
+    }
+  };
+
+  const handleExportPDF = async () => {
+    setIsExportingPDF(true);
+    try {
+      const exportParams = { ...filters, limit: 10000, page: 1 };
+
+      // PERBAIKAN: Gunakan attendanceService agar format ISO otomatis tertangani
+      const response = await attendanceService.getHistory(exportParams);
+      const allItems: Attendance[] = response.items;
+
+      if (!allItems.length) {
+        alert("Tidak ada data untuk di-export");
+        setIsExportingPDF(false);
+        return;
+      }
+
+      const pdf = new jsPDF('p', 'pt', 'a4');
+
+      pdf.setFontSize(16);
+      pdf.text('Laporan Rekap Absensi', 40, 40);
+      pdf.setFontSize(10);
+      pdf.setTextColor(100);
+      pdf.text(`Periode: ${filters.startDate} s/d ${filters.endDate}`, 40, 55);
+
+      const tableData = allItems.map(item => [
+        item.userName,
+        item.userNik || '-',
+        item.type === 'IN' ? 'MASUK' : 'KELUAR',
+        formatDate(item.recordedAt),
+        item.projectName || 'Pusat'
+      ]);
+
+      autoTable(pdf, {
+        startY: 70,
+        head: [['Nama Pegawai', 'NIK', 'Status', 'Waktu', 'Proyek/Lokasi']],
+        body: tableData,
+        headStyles: { fillColor: [79, 70, 229] },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { fontSize: 9, cellPadding: 6 },
+      });
+
+      pdf.save(`Rekap_Absensi_${filters.startDate}.pdf`);
+    } catch (error) {
+      console.error("Gagal export PDF", error);
+      alert("Terjadi kesalahan saat men-generate PDF.");
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+  const columns = [
+    {
+      header: 'Preview',
+      accessor: 'capturedImageUrl',
+      render: (val: string, row: Attendance) => (
+        <div
+          className="relative w-11 h-11 rounded-lg overflow-hidden cursor-pointer group border border-slate-200/80 shadow-sm"
+          onClick={() => setSelectedAttendance(row)}
+        >
+          {val ? (
+            <img src={val} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Preview" />
+          ) : (
+            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+              <UserCircle2 className="text-slate-400" size={24} />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
+            <Maximize2 size={16} className="text-white" />
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Pegawai',
+      accessor: 'userName',
+      render: (val: string, row: Attendance) => (
+        <div className="cursor-pointer group" onClick={() => setSelectedAttendance(row)}>
+          <p className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{val}</p>
+          <p className="text-[12px] text-slate-500 font-medium mt-0.5">{row.userRole} <span className="mx-1 text-slate-300">•</span> {row.userNik || 'No NIK'}</p>
+        </div>
+      )
+    },
+    {
+      header: 'Status',
+      accessor: 'type',
+      render: (val: string) => (
+        <span className={`px-2.5 py-1 text-[11px] font-bold rounded-md tracking-wide ${val === 'IN' ? 'bg-emerald-100/60 text-emerald-700' : 'bg-amber-100/60 text-amber-700'}`}>
+          {val === 'IN' ? 'MASUK' : 'KELUAR'}
+        </span>
+      )
+    },
+    {
+      header: 'Waktu',
+      accessor: 'recordedAt',
+      render: (val: string) => <span className="text-[13px] font-semibold text-slate-700">{formatDate(val)}</span>
+    },
+    {
+      header: 'Proyek',
+      accessor: 'projectName',
+      render: (val: string) => <span className="text-[13px] font-medium text-slate-600">{val || '-'}</span>
+    }
+  ];
+
+  // Logic aman untuk mendeteksi total halaman
+  const totalPages = data?.meta?.total
+    ? Math.ceil(data.meta.total / (filters.limit || 10))
+    : (data?.meta?.lastPage || 1);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white px-8 py-4 rounded-xl">
+        <div>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Rekap Absensi</h1>
+          <p className="text-slate-500 text-[14px] font-medium mt-1">Sistem pemantauan kehadiran real-time.</p>
+        </div>
+        <div className="flex gap-3 w-full md:w-auto">
+          <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-95">
+            <FileSpreadsheet size={16} className="text-emerald-600" /> Export Excel
+          </button>
+          <button onClick={handleExportPDF} disabled={isExportingPDF} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-[13px] hover:bg-slate-900 shadow-md transition-all active:scale-95 disabled:opacity-70">
+            {isExportingPDF ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Cetak PDF
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-[20px] shadow-sm border border-slate-200/80">
+        <div className="flex items-center gap-2.5 mb-5 border-b border-slate-100 pb-4">
+          <Filter size={18} className="text-slate-400" />
+          <h2 className="text-[15px] font-bold text-slate-800">Filter Data</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <Input label="Mulai" type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} />
+          <Input label="Selesai" type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} />
+          <Select label="Tipe" name="type" value={filters.type} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Tipe' }, { value: 'IN', label: 'Masuk' }, { value: 'OUT', label: 'Keluar' }]} />
+          <Select label="Perusahaan" name="perusahaanId" value={filters.perusahaanId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(companies?.map((c: any) => ({ value: c.id, label: c.nama })) || [])]} />
+          <Select label="Proyek" name="projectId" value={filters.projectId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(projects?.map((p: any) => ({ value: p.id, label: p.name })) || [])]} />
+          <Select label="Jabatan" name="role" value={filters.role} onChange={handleFilterChange} options={[{ value: '', label: 'Semua' }, ...(roles?.map((r: any) => ({ value: r.name, label: r.name })) || [])]} />
+        </div>
+      </div>
+
+      <div>
+        <DataTable
+          title="Log Kehadiran"
+          columns={columns}
+          data={data?.items || []}
+          serverSide
+          searchTerm={filters.search}
+          onSearchChange={(s) => setFilters(f => ({ ...f, search: s, page: 1 }))}
+          page={filters.page}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      </div>
+
+      <Modal isOpen={!!selectedAttendance} onClose={() => setSelectedAttendance(null)} title="Detail Validasi Kehadiran">
+        {selectedAttendance && (
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="w-full md:w-2/5">
+              <div className="rounded-2xl overflow-hidden border-[6px] border-white shadow-lg aspect-[3/4] bg-slate-100 relative">
+                {selectedAttendance.capturedImageUrl ? (
+                  <img src={selectedAttendance.capturedImageUrl} className="w-full h-full object-cover" alt="Captured Biometric" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center flex-col text-slate-400 gap-3">
+                    <UserCircle2 size={56} strokeWidth={1.5} />
+                    <span className="text-sm font-medium">Foto tidak tersedia</span>
+                  </div>
+                )}
+                <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-sm flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Confidence Score</span>
+                  <span className="text-sm font-black text-slate-800">{selectedAttendance.confidence ? `${(selectedAttendance.confidence * 100).toFixed(1)}%` : 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col gap-5">
+              <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                <div className="flex justify-between items-start mb-5">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight">{selectedAttendance.userName}</h2>
+                    <p className="font-semibold text-slate-500 mt-1 text-sm">{selectedAttendance.userRole} <span className="font-normal text-slate-300 mx-1.5">|</span> {selectedAttendance.userNik || '-'}</p>
+                  </div>
+                  <span className={`px-3 py-1.5 rounded-lg text-[11px] font-black tracking-widest ${selectedAttendance.type === 'IN'
+                    ? 'bg-emerald-100/60 text-emerald-700'
+                    : 'bg-amber-100/60 text-amber-700'
+                    }`}>
+                    {selectedAttendance.type === 'IN' ? 'MASUK' : 'KELUAR'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-y-5 gap-x-4 pt-5 border-t border-slate-200/60">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Waktu</p>
+                    <p className="text-[14px] font-bold text-slate-800">{formatDate(selectedAttendance.recordedAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Proyek/Lokasi</p>
+                    <p className="text-[14px] font-bold text-slate-800">{selectedAttendance.projectName || 'Pusat / Tidak ada'}</p>
+                  </div>
+                  <div className="col-span-2 bg-white p-3.5 rounded-xl border border-slate-100 mt-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Direkam Oleh</p>
+                    <p className="text-[13px] font-bold text-slate-700">
+                      {selectedAttendance.recordedByName} <span className="font-medium text-slate-400">({selectedAttendance.recordedByRole})</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-[180px] flex flex-col">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mb-2.5 ml-1">
+                  <MapPin size={14} className="text-slate-400" /> Kordinat GPS
+                </p>
+                <div className="flex-1 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 relative">
+                  {selectedAttendance.latitude && selectedAttendance.longitude ? (
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      frameBorder="0"
+                      style={{ border: 0, minHeight: '180px' }}
+                      src={`https://maps.google.com/maps?q=${selectedAttendance.latitude},${selectedAttendance.longitude}&z=16&output=embed`}
+                      allowFullScreen
+                    ></iframe>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                      <MapPin size={28} className="mb-2 opacity-40" />
+                      <span className="font-bold text-xs">Lokasi GPS tidak tersedia</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+};
+
+export default AttendanceRecap;
+</file>
+
+<file path="src/services/attendance.service.ts">
+import api from "../lib/axios";
+import type { ApiResponse } from "../types/api_response";
+import type {
+  Attendance,
+  AttendanceHistoryParams,
+  PaginatedData,
+} from "../types/models/attendance";
+
+export const attendanceService = {
+  getHistory: async (params: AttendanceHistoryParams) => {
+    const apiParams = { ...params };
+
+    if (apiParams.startDate) {
+      apiParams.startDate = new Date(
+        `${apiParams.startDate}T00:00:00`,
+      ).toISOString();
+    }
+
+    if (apiParams.endDate) {
+      apiParams.endDate = new Date(
+        `${apiParams.endDate}T23:59:59`,
+      ).toISOString();
+    }
+
+    const { data } = await api.get<ApiResponse<PaginatedData<Attendance>>>(
+      "/attendance/history",
+      { params: apiParams },
+    );
+    return data.data;
+  },
+};
+</file>
+
+<file path="src/types/models/attendance.ts">
+export interface Attendance {
+  id: string;
+  userName: string;
+  userRole: string;
+  userNik: string | null;
+  recordedByName: string;
+  recordedByRole: string;
+  isSelfAttendance: boolean;
+  recordedAt: string;
+  confidence: number | null;
+  capturedImageUrl: string | null;
+  type: "IN" | "OUT";
+  latitude: number | null;
+  longitude: number | null;
+  projectId: string | null;
+  projectName: string | null;
+  message?: string;
+}
+
+export interface AttendanceHistoryParams {
+  limit?: number;
+  page?: number;
+  cursor?: string;
+  search?: string;
+  type?: "IN" | "OUT" | "";
+  sortOrder?: "desc" | "asc";
+  startDate?: string;
+  endDate?: string;
+  role?: string;
+  perusahaanId?: string;
+  projectId?: string;
+}
+
+export interface PaginationMeta {
+  nextCursor?: string | null;
+  hasNextPage?: boolean;
+  total?: number;
+  lastPage?: number;
+  page?: number;
+}
+
+export interface PaginatedData<T> {
+  items: T[];
+  meta: PaginationMeta;
+}
 </file>
 
 </files>
