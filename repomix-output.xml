@@ -1,0 +1,1731 @@
+tolong buat web nya berwarna tapi jangan bikin rusak mata, jangan hanya hitam putih saja.
+<file path="package.json">
+{
+  "name": "bumantara-absensi",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.0",
+    "@tanstack/react-query": "^5.96.2",
+    "axios": "^1.15.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "html-to-image": "^1.11.13",
+    "i18next": "^25.8.11",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^0.575.0",
+    "motion": "^12.34.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-qr-code": "^2.0.18",
+    "react-router-dom": "^7.13.2",
+    "react-signature-canvas": "^1.1.0-alpha.2",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@tanstack/react-query-devtools": "^5.96.2",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-signature-canvas": "^1.0.7",
+    "@vitejs/plugin-react-swc": "^4.2.2",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.48.0",
+    "vite": "^7.3.1"
+  }
+}
+</file>
+
+<file path="src/App.tsx">
+// src/App.tsx
+import { Suspense, lazy } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import PageLoader from './pages/PageLoader';
+import RootLayout from './components/layouts/RootLayout';
+import { useAuth } from './context/AuthContext';
+import { AuthProvider } from './providers/AuthProvider';
+import { QueryProvider } from './providers/QueryProvider';
+
+const Login = lazy(() => import('./pages/Login'));
+const Home = lazy(() => import('./pages/Home'));
+// Daftarkan route baru di sini
+const AttendanceRecap = lazy(() => import('./pages/Attendance/AttendanceRecap'));
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+};
+
+const App = () => {
+  return (
+    <QueryProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+
+              <Route path="/" element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
+                <Route index element={<Home />} />
+                <Route path="attendance/recap" element={<AttendanceRecap />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryProvider>
+  );
+};
+
+export default App;
+</file>
+
+<file path="src/components/layouts/RootLayout.tsx">
+import { Outlet } from 'react-router-dom';
+import Sidebar from '../Sidebar';
+
+const RootLayout = () => {
+  return (
+    <div className="flex min-h-screen bg-[var(--theme-background)]">
+      <Sidebar />
+      <main className="flex-1 overflow-x-hidden">
+        <div className="p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default RootLayout;
+</file>
+
+<file path="src/components/Navbar.tsx">
+const Navbar = () => {
+  return (
+    <div>Navbar</div>
+  )
+}
+
+export default Navbar
+</file>
+
+<file path="src/components/shared/CurrencyInput.tsx">
+import React from 'react';
+interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type' | 'value'> {
+  label: string;
+  error?: string;
+  value: number | string;
+  onValueChange: (name: string, value: number) => void;
+  name: string;
+}
+const CurrencyInput = ({ label, error, value, onValueChange, name, ...props }: CurrencyInputProps) => {
+  const displayValue = value === 0 || value === '' ? '' : new Intl.NumberFormat('id-ID').format(Number(value));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/[^0-9]/g, '');
+    const numericValue = rawValue ? Number(rawValue) : 0;
+    onValueChange(name, numericValue);
+  };
+  return (
+    <div className="flex flex-col gap-1.5 mb-4 group w-full">
+      <label className="text-[13px] font-bold text-slate-600 uppercase tracking-wider transition-colors group-focus-within:text-black ml-1">
+        {label}
+      </label>
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <span className="text-slate-500 font-medium text-sm">Rp</span>
+        </div>
+        <input
+          type="text"
+          name={name}
+          value={displayValue}
+          onChange={handleChange}
+          className={`w-full pl-11 pr-4 py-2.5 text-sm rounded-xl border transition-all duration-300 outline-none placeholder:text-slate-400 shadow-sm/50 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed disabled:border-slate-200
+            ${error
+              ? 'border-red-400 bg-red-50/30 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 text-slate-900'
+              : 'border-slate-200 hover:border-slate-300 focus:bg-white focus:ring-4 focus:ring-black/5 focus:border-black text-slate-900 bg-white'
+            }`}
+          {...props}
+        />
+      </div>
+      {error && (
+        <span className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+};
+export default CurrencyInput;
+</file>
+
+<file path="src/components/shared/DataTable.tsx">
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Search, FileX2, ChevronRight, ChevronDown, ChevronLeft } from 'lucide-react';
+
+interface Column {
+  header: string;
+  accessor: string;
+  render?: (value: any, row: any) => React.ReactNode;
+}
+
+interface DataTableProps {
+  title: string;
+  columns: Column[];
+  data: any[];
+  onAdd?: () => void;
+  onEdit?: (item: any) => void;
+  onDelete?: (item: any) => void;
+  expandedRowRender?: (row: any) => React.ReactNode;
+  serverSide?: boolean;
+  searchTerm?: string;
+  onSearchChange?: (val: string) => void;
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+}
+
+const DataTable = ({
+  title, columns, data, onAdd, onEdit, onDelete, expandedRowRender,
+  serverSide = false, searchTerm = '', onSearchChange, page = 1, totalPages = 1, onPageChange
+}: DataTableProps) => {
+
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    if (serverSide && onSearchChange) {
+      const timeoutId = setTimeout(() => {
+        if (localSearchTerm !== searchTerm) {
+          onSearchChange(localSearchTerm);
+        }
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [localSearchTerm, serverSide, onSearchChange, searchTerm]);
+
+  const toggleRow = (rowIndex: number) => {
+    setExpandedRows((prev) => ({ ...prev, [rowIndex]: !prev[rowIndex] }));
+  };
+
+  const filteredData = useMemo(() => {
+    if (serverSide) return data;
+    if (!localSearchTerm) return data;
+
+    const lowercasedTerm = localSearchTerm.toLowerCase();
+    return data.filter((row) => {
+      return columns.some((col) => {
+        const value = row[col.accessor];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(lowercasedTerm);
+      });
+    });
+  }, [data, localSearchTerm, columns, serverSide]);
+
+  const totalCols = columns.length + (expandedRowRender ? 1 : 0) + (onEdit || onDelete ? 1 : 0);
+
+  const getPageNumbers = () => {
+    const delta = 1;
+    const range = [];
+    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
+      range.push(i);
+    }
+    if (page - delta > 2) range.unshift("...");
+    if (page + delta < totalPages - 1) range.push("...");
+    range.unshift(1);
+    if (totalPages > 1) range.push(totalPages);
+    return range;
+  };
+
+  return (
+    <div className="bg-white rounded-[24px] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)] border border-zinc-100 overflow-hidden flex flex-col transition-all duration-300">
+      <div className="p-6 md:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 bg-white border-b border-zinc-100">
+        <div>
+          <div className="flex items-center gap-3 mb-1.5">
+            <h2 className="text-xl font-bold text-zinc-900 tracking-tight">{title}</h2>
+            {!serverSide && (
+              <span className="px-2.5 py-1 bg-zinc-50 text-zinc-500 text-[10px] font-bold uppercase tracking-widest rounded-md border border-zinc-200/60">
+                {filteredData.length} Data
+              </span>
+            )}
+          </div>
+          <p className="text-[13px] text-zinc-500 font-medium">Kelola dan pantau informasi operasional secara real-time.</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+          <div className="relative w-full sm:w-72 group">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-zinc-700 transition-colors" />
+            <input
+              type="text"
+              placeholder="Cari data..."
+              value={localSearchTerm}
+              onChange={(e) => setLocalSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-zinc-50/50 border border-zinc-200/80 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-zinc-900/5 focus:border-zinc-400 focus:bg-white transition-all text-zinc-900 placeholder:text-zinc-400"
+            />
+          </div>
+
+          {onAdd && (
+            <button
+              onClick={onAdd}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-xl hover:bg-zinc-800 hover:shadow-lg hover:shadow-zinc-900/10 transition-all duration-300 font-bold text-[12px] uppercase tracking-widest active:scale-95 cursor-pointer"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              Tambah Data
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full text-sm text-left border-collapse">
+          <thead>
+            <tr className="bg-zinc-50/50 text-zinc-500 text-[11px] uppercase font-bold tracking-widest border-b border-zinc-100">
+              {expandedRowRender && <th className="px-4 py-4 w-10 text-center"></th>}
+              {columns.map((col, index) => (
+                <th key={index} className="px-6 py-5 whitespace-nowrap font-bold">
+                  {col.header}
+                </th>
+              ))}
+              {(onEdit || onDelete) && (
+                <th className="px-6 py-5 text-center whitespace-nowrap w-24">Aksi</th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100/80">
+            {filteredData.length > 0 ? (
+              filteredData.map((row, rowIndex) => {
+                const isExpanded = !!expandedRows[rowIndex];
+                return (
+                  <React.Fragment key={rowIndex}>
+                    <tr
+                      onClick={() => {
+                        if (expandedRowRender) toggleRow(rowIndex);
+                      }}
+                      className={`transition-colors duration-200 group ${expandedRowRender ? 'cursor-pointer hover:bg-zinc-50' : 'hover:bg-zinc-50/50'} ${isExpanded ? 'bg-zinc-50' : ''}`}
+                    >
+                      {expandedRowRender && (
+                        <td className="px-4 py-4 text-center text-zinc-400 group-hover:text-zinc-600 transition-colors">
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </td>
+                      )}
+                      {columns.map((col, colIndex) => (
+                        <td key={colIndex} className="px-6 py-4 text-zinc-600 whitespace-nowrap font-medium">
+                          {col.render ? col.render(row[col.accessor], row) : row[col.accessor]}
+                        </td>
+                      ))}
+                      {(onEdit || onDelete) && (
+                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity duration-300">
+                            {onEdit && (
+                              <button onClick={() => onEdit(row)} className="p-2 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer">
+                                <Edit2 size={16} />
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button onClick={() => onDelete(row)} className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer">
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                    {isExpanded && expandedRowRender && (
+                      <tr className="bg-zinc-50/50">
+                        <td colSpan={totalCols} className="px-6 py-6 border-b border-zinc-100">
+                          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                            {expandedRowRender(row)}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={totalCols} className="px-6 py-28 text-center">
+                  <div className="flex flex-col items-center max-w-sm mx-auto">
+                    <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mb-5 ring-8 ring-zinc-50/50">
+                      <FileX2 size={28} className="text-zinc-400" />
+                    </div>
+                    <h3 className="text-zinc-900 font-bold mb-1">Data tidak ditemukan</h3>
+                    <p className="text-zinc-500 text-[13px] font-medium leading-relaxed">
+                      Kami tidak dapat menemukan data yang Anda cari. Coba sesuaikan filter atau kata kunci pencarian Anda.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {serverSide && totalPages > 1 && (
+        <div className="p-5 border-t border-zinc-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
+          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">
+            Halaman {page} dari {totalPages}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onPageChange?.(page - 1)}
+              disabled={page === 1}
+              className="p-2 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={18} />
+            </button>
+
+            {getPageNumbers().map((num, idx) => (
+              num === "..." ? (
+                <span key={idx} className="px-2 text-zinc-400 font-bold">...</span>
+              ) : (
+                <button
+                  key={idx}
+                  onClick={() => onPageChange?.(num as number)}
+                  className={`min-w-[36px] h-9 flex items-center justify-center rounded-xl text-[13px] font-bold transition-all cursor-pointer ${page === num
+                    ? 'bg-zinc-900 text-white shadow-md shadow-zinc-900/10'
+                    : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
+                    }`}
+                >
+                  {num}
+                </button>
+              )
+            ))}
+
+            <button
+              onClick={() => onPageChange?.(page + 1)}
+              disabled={page === totalPages}
+              className="p-2 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DataTable;
+</file>
+
+<file path="src/components/shared/FileInput.tsx">
+import type { InputHTMLAttributes } from 'react';
+import { UploadCloud } from 'lucide-react';
+
+interface FileInputProps extends InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  error?: string;
+}
+
+const FileInput = ({ label, error, ...props }: FileInputProps) => {
+  return (
+    <div className="flex flex-col gap-1.5 mb-4 group w-full">
+      <label className="text-[13px] font-bold text-slate-600 uppercase tracking-wider transition-colors group-focus-within:text-black ml-1">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          type="file"
+          className={`block w-full text-sm text-slate-500
+            file:mr-4 file:py-2.5 file:px-4
+            file:rounded-l-xl file:border-0
+            file:text-xs file:font-bold file:uppercase file:tracking-widest
+            file:bg-slate-900 file:text-white
+            hover:file:bg-black file:transition-all
+            file:cursor-pointer cursor-pointer
+            border rounded-xl shadow-sm/50 transition-all duration-300
+            ${error
+              ? 'border-red-400 bg-red-50/30 focus:ring-4 focus:ring-red-500/10 focus:border-red-500'
+              : 'border-slate-200 bg-white hover:border-slate-300 focus:ring-4 focus:ring-black/5 focus:border-black'
+            }
+          `}
+          {...props}
+        />
+        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-300 group-hover:text-slate-500 transition-colors">
+          <UploadCloud size={18} />
+        </div>
+      </div>
+      {error && (
+        <span className="text-xs font-medium text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+};
+
+export default FileInput;
+</file>
+
+<file path="src/components/shared/Input.tsx">
+import type { InputHTMLAttributes } from 'react';
+
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  error?: string;
+}
+
+const Input = ({ label, error, ...props }: InputProps) => {
+  return (
+    <div className="flex flex-col gap-1.5 mb-4 group w-full">
+      <label className="text-[12px] font-bold text-zinc-500 uppercase tracking-widest transition-colors group-focus-within:text-zinc-900 ml-1">
+        {label}
+      </label>
+      <input
+        className={`w-full px-4 py-3.5 text-sm rounded-xl border transition-all duration-300 outline-none placeholder:text-zinc-400 disabled:bg-zinc-50 disabled:text-zinc-400 disabled:cursor-not-allowed disabled:border-zinc-200
+          ${error
+            ? 'border-red-300 bg-red-50/30 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 text-zinc-900'
+            : 'border-zinc-200 hover:border-zinc-300 focus:bg-white focus:ring-4 focus:ring-zinc-900/5 focus:border-zinc-900 text-zinc-900 bg-zinc-50/50'
+          }`}
+        {...props}
+      />
+      {error && (
+        <span className="text-[11px] font-semibold text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+};
+
+export default Input;
+</file>
+
+<file path="src/components/shared/Modal.tsx">
+import { type ReactNode, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}
+
+const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-zinc-950/40 backdrop-blur-sm transition-all"
+            onClick={onClose}
+          />
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="relative bg-white rounded-[24px] w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl ring-1 ring-zinc-900/5 overflow-hidden"
+          >
+            <div className="flex justify-between items-center px-8 py-6 border-b border-zinc-100 bg-white shrink-0">
+              <div>
+                <h3 className="text-xl font-bold text-zinc-900 tracking-tight">{title}</h3>
+                <p className="text-[12px] text-zinc-400 font-medium mt-1">Detail informasi tersimpan di sistem</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2.5 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all cursor-pointer bg-zinc-50"
+              >
+                <X size={20} strokeWidth={2} />
+              </button>
+            </div>
+
+            <div className="p-8 overflow-y-auto custom-scrollbar bg-zinc-50/30">
+              {children}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+};
+
+export default Modal;
+</file>
+
+<file path="src/components/shared/Select.tsx">
+import type { SelectHTMLAttributes } from 'react';
+
+interface Option {
+  value: string | number;
+  label: string;
+}
+
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  label: string;
+  options: Option[];
+  error?: string;
+}
+
+const Select = ({ label, options, error, ...props }: SelectProps) => {
+  return (
+    <div className="flex flex-col gap-1.5 mb-4 group w-full">
+      <label className="text-[12px] font-bold text-zinc-500 uppercase tracking-widest transition-colors group-focus-within:text-zinc-900 ml-1">
+        {label}
+      </label>
+      <div className="relative">
+        <select
+          className={`w-full px-4 py-3.5 text-sm rounded-xl border transition-all duration-300 outline-none cursor-pointer appearance-none disabled:bg-zinc-50 disabled:text-zinc-400 disabled:cursor-not-allowed disabled:border-zinc-200
+            ${error
+              ? 'border-red-300 bg-red-50/30 focus:ring-4 focus:ring-red-500/10 focus:border-red-500 text-zinc-900'
+              : 'border-zinc-200 hover:border-zinc-300 focus:bg-white focus:ring-4 focus:ring-zinc-900/5 focus:border-zinc-900 text-zinc-900 bg-zinc-50/50'
+            }`}
+          {...props}
+        >
+          <option value="" disabled>Pilih {label}...</option>
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value} className="py-2">
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        {/* Custom Arrow Icon */}
+        <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-zinc-400 group-focus-within:text-zinc-900 transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+      {error && (
+        <span className="text-[11px] font-semibold text-red-500 mt-1 ml-1 animate-in fade-in slide-in-from-top-1">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+};
+
+export default Select;
+</file>
+
+<file path="src/components/Sidebar.tsx">
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, ClipboardList, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
+const Sidebar = () => {
+  const { logout } = useAuth();
+
+  const navItems = [
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Rekap Absensi', path: '/attendance/recap', icon: ClipboardList },
+  ];
+
+  return (
+    <aside className="w-64 bg-sidebar-bg border-r border-sidebar-border h-screen sticky top-0 flex flex-col transition-colors duration-300 shadow-[4px_0_24px_rgb(0,0,0,0.01)]">
+      <div className="p-6">
+        <div className="flex items-center gap-3.5 mb-10 text-slate-900">
+          <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md shadow-slate-900/20">
+            B
+          </div>
+          <span className="font-black text-xl tracking-tight">Bumantara</span>
+        </div>
+
+        <nav className="space-y-2">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `flex items-center gap-3.5 px-4 py-3 rounded-xl text-[13px] font-bold transition-all duration-300 ${isActive
+                  ? 'bg-sidebar-active-bg text-sidebar-active-text shadow-md shadow-slate-900/5'
+                  : 'text-sidebar-text hover:bg-sidebar-hover-bg hover:text-slate-900'
+                }`
+              }
+            >
+              <item.icon size={18} />
+              {item.name}
+            </NavLink>
+          ))}
+        </nav>
+      </div>
+
+      <div className="mt-auto p-6 border-t border-sidebar-border bg-slate-50/50">
+        <button
+          onClick={logout}
+          className="flex items-center gap-3.5 px-4 py-3 w-full text-left rounded-xl text-[13px] font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-300 cursor-pointer group"
+        >
+          <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+          Keluar Sistem
+        </button>
+      </div>
+    </aside>
+  );
+};
+
+export default Sidebar;
+</file>
+
+<file path="src/context/AuthContext.tsx">
+import { createContext, useContext } from 'react';
+import type { ActionResult } from '../types/common';
+
+export interface AuthContextType {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, pass: string) => Promise<ActionResult>;
+  logout: () => void;
+}
+
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth harus digunakan di dalam AuthProvider');
+  }
+  return context;
+};
+</file>
+
+<file path="src/hooks/useAttendance.ts">
+import { useQuery } from "@tanstack/react-query";
+import { attendanceService } from "../services/attendance.service";
+import type { AttendanceHistoryParams } from "../types/models/attendance";
+
+export const useAttendanceHistory = (params: AttendanceHistoryParams) => {
+  return useQuery({
+    queryKey: ["attendance-history", params],
+    queryFn: () => attendanceService.getHistory(params),
+
+    staleTime: 1000 * 60 * 1,
+  });
+};
+</file>
+
+<file path="src/hooks/useCrud.ts">
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "../lib/axios";
+
+export const useCrud = <T>(endpoint: string, queryKeyName: string) => {
+  const queryClient = useQueryClient();
+
+  const keys = {
+    all: [queryKeyName] as const,
+    detail: (id: string) => [queryKeyName, id] as const,
+  };
+
+  const getAll = useQuery({
+    queryKey: keys.all,
+    queryFn: async () => {
+      const { data } = await api.get<T[]>(endpoint);
+      return data;
+    },
+  });
+
+  const create = useMutation({
+    mutationFn: async (newData: Omit<T, "id">) => {
+      const { data } = await api.post<T>(endpoint, newData);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.all });
+    },
+  });
+
+  const update = useMutation({
+    mutationFn: async ({ id, ...updateData }: Partial<T> & { id: string }) => {
+      const { data } = await api.put<T>(`${endpoint}/${id}`, updateData);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.all });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`${endpoint}/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.all });
+    },
+  });
+
+  return { keys, getAll, create, update, remove };
+};
+</file>
+
+<file path="src/hooks/useForm.ts">
+import { useState } from "react";
+
+export const useForm = <T>(
+  initialState: T,
+  validateFn?: (values: T) => Partial<Record<keyof T, string>>,
+) => {
+  const [formData, setFormData] = useState<T>(initialState);
+  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    const { name, value, type } = e.target;
+    const parsedValue =
+      type === "number" ? (value === "" ? 0 : Number(value)) : value;
+
+    setFormData((prev) => ({ ...prev, [name]: parsedValue }));
+
+    if (errors[name as keyof T]) {
+      setErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+  };
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    fieldName: keyof T,
+  ) => {
+    const file = e.target.files?.[0];
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: (file ? file.name : "") as unknown as T[keyof T],
+    }));
+  };
+
+  const validate = () => {
+    if (!validateFn) return true;
+    const newErrors = validateFn(formData);
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const resetForm = () => {
+    setFormData(initialState);
+    setErrors({});
+  };
+
+  return {
+    formData,
+    setFormData,
+    errors,
+    setErrors,
+    handleChange,
+    handleFileChange,
+    validate,
+    resetForm,
+  };
+};
+</file>
+
+<file path="src/index.css">
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Montserrat", system-ui, sans-serif;
+  --font-heading: "", var(--font-sans);
+
+  --radius-btn: 10px; /* Sedikit lebih membulat untuk kesan modern */
+  --radius-card: 20px;
+
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-hover-bg: var(--sidebar-hover-bg);
+  --color-sidebar-active-bg: var(--sidebar-active-bg);
+  --color-sidebar-active-text: var(--sidebar-active-text);
+}
+
+:root {
+  --section-padding-y: 6rem;
+  --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Background diubah ke off-white (Zinc 50) agar tidak menyilaukan seperti kertas HVS */
+  --theme-background: #fafafa;
+  /* Foreground diubah ke Zinc 800 (Charcoal), hindari #000 pure black untuk mengurangi eye-strain */
+  --theme-foreground: #27272a;
+
+  /* Sidebar Premium Neutral Theme */
+  --sidebar-bg: #ffffff;
+  --sidebar-text: #71717a; /* Zinc 500 */
+  --sidebar-border: #f4f4f5; /* Zinc 100 */
+  --sidebar-hover-bg: #f4f4f5;
+  --sidebar-active-bg: #18181b; /* Zinc 900 */
+  --sidebar-active-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark mode yang elegan dan tidak pitch-black */
+    --theme-background: #09090b; /* Zinc 950 */
+    --theme-foreground: #fafafa; /* Zinc 50 */
+
+    --sidebar-bg: #09090b;
+    --sidebar-text: #a1a1aa;
+    --sidebar-border: #27272a;
+    --sidebar-hover-bg: #18181b;
+    --sidebar-active-bg: #fafafa;
+    --sidebar-active-text: #09090b;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  background-color: var(--theme-background);
+  color: var(--theme-foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.03em; /* Rapat dan tegas */
+}
+
+/* Custom Scrollbar Premium - Dibuat menyatu dengan background */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e4e4e7; /* Zinc 200 */
+  border-radius: 20px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa; /* Zinc 400 */
+}
+</file>
+
+<file path="src/lib/axios.ts">
+import axios from "axios";
+import { storage } from "../utils/storage";
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "/api/v1",
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+api.interceptors.request.use((config) => {
+  const token = storage.getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      storage.clearAuth();
+      window.dispatchEvent(new Event("auth-unauthorized"));
+    }
+    return Promise.reject(error);
+  },
+);
+
+export default api;
+</file>
+
+<file path="src/main.tsx">
+import ReactDOM from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <App />
+);
+</file>
+
+<file path="src/pages/Attendance/AttendanceRecap.tsx">
+import { useState, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
+import { Download, FileSpreadsheet, Loader2, ChevronLeft, ChevronRight, MapPin, Maximize2, UserCircle2 } from 'lucide-react';
+
+import { useAttendanceHistory } from '../../hooks/useAttendance';
+import api from '../../lib/axios';
+import DataTable from '../../components/shared/DataTable';
+import Select from '../../components/shared/Select';
+import Input from '../../components/shared/Input';
+import Modal from '../../components/shared/Modal';
+import { formatDate } from '../../utils/formatters';
+import type { Attendance, AttendanceHistoryParams } from '../../types/models/attendance';
+
+const getTodayDateString = () => new Date().toISOString().split('T')[0];
+
+const AttendanceRecap = () => {
+  const googleMapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: async () => (await api.get('/roles')).data.data });
+  const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: async () => (await api.get('/projects')).data.data });
+  const { data: companies } = useQuery({ queryKey: ['perusahaan'], queryFn: async () => (await api.get('/perusahaan')).data.data });
+
+  const [filters, setFilters] = useState<AttendanceHistoryParams>({
+    limit: 10, search: '', type: '', sortOrder: 'desc',
+    startDate: getTodayDateString(), endDate: getTodayDateString(),
+    role: '', projectId: '', perusahaanId: '',
+  });
+
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+  const [currentCursor, setCurrentCursor] = useState<string | undefined>(undefined);
+  const [selectedAttendance, setSelectedAttendance] = useState<Attendance | null>(null);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const { data } = useAttendanceHistory({ ...filters, cursor: currentCursor });
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+    setCurrentCursor(undefined);
+    setCursorHistory([]);
+  };
+
+  const handleNextPage = () => {
+    if (data?.meta.nextCursor) {
+      setCursorHistory(prev => [...prev, currentCursor || '']);
+      setCurrentCursor(data.meta.nextCursor);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (cursorHistory.length > 0) {
+      const newHistory = [...cursorHistory];
+      const prevCursor = newHistory.pop();
+      setCursorHistory(newHistory);
+      setCurrentCursor(prevCursor === '' ? undefined : prevCursor);
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (!data?.items.length) return;
+    const headers = ['Nama', 'NIK', 'Tipe', 'Waktu', 'Proyek', 'Lokasi'];
+    const rows = data.items.map(item => [
+      `"${item.userName}"`, `"${item.userNik || '-'}"`, `"${item.type}"`,
+      `"${formatDate(item.recordedAt)}"`, `"${item.projectName || '-'}"`,
+      `"${item.latitude},${item.longitude}"`
+    ].join(','));
+    const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Absensi_${filters.startDate}.csv`;
+    link.click();
+  };
+
+  const handleExportPDF = async () => {
+    if (!tableRef.current) return;
+    setIsExportingPDF(true);
+    try {
+      const dataUrl = await toPng(tableRef.current, { backgroundColor: '#fff', pixelRatio: 2 });
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      const width = pdf.internal.pageSize.getWidth();
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const printHeight = (imgProps.height * (width - 20)) / imgProps.width;
+      pdf.addImage(dataUrl, 'PNG', 10, 10, width - 20, printHeight);
+      pdf.save(`Absensi_${filters.startDate}.pdf`);
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
+  const columns = [
+    {
+      header: 'Preview',
+      accessor: 'capturedImageUrl',
+      render: (val: string, row: Attendance) => (
+        <div
+          className="relative w-12 h-12 rounded-xl overflow-hidden cursor-pointer group border border-zinc-200/80 shadow-sm"
+          onClick={() => setSelectedAttendance(row)}
+        >
+          {val ? (
+            <img src={val} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Preview" />
+          ) : (
+            <div className="w-full h-full bg-zinc-100 flex items-center justify-center">
+              <UserCircle2 className="text-zinc-300" size={24} />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-zinc-900/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300 backdrop-blur-[1px]">
+            <Maximize2 size={16} className="text-white" />
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Pegawai',
+      accessor: 'userName',
+      render: (val: string, row: Attendance) => (
+        <div className="cursor-pointer group" onClick={() => setSelectedAttendance(row)}>
+          <p className="font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors">{val}</p>
+          <p className="text-[12px] text-zinc-500 font-medium mt-0.5">{row.userRole} <span className="mx-1 text-zinc-300">•</span> {row.userNik || 'No NIK'}</p>
+        </div>
+      )
+    },
+    {
+      header: 'Status',
+      accessor: 'type',
+      render: (val: string) => (
+        <span className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border tracking-wide ${val === 'IN'
+          ? 'bg-emerald-50/50 text-emerald-600 border-emerald-200/60'
+          : 'bg-amber-50/50 text-amber-600 border-amber-200/60'
+          }`}>
+          {val === 'IN' ? 'MASUK' : 'KELUAR'}
+        </span>
+      )
+    },
+    {
+      header: 'Waktu',
+      accessor: 'recordedAt',
+      render: (val: string) => <span className="text-[13px] font-semibold text-zinc-700">{formatDate(val)}</span>
+    },
+    {
+      header: 'Proyek',
+      accessor: 'projectName',
+      render: (val: string) => <span className="text-[13px] font-medium text-zinc-500">{val || '-'}</span>
+    }
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Action Bar */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Rekap Absensi</h1>
+          <p className="text-zinc-500 text-[14px] font-medium mt-1">Sistem pemantauan kehadiran & integrasi biometrik.</p>
+        </div>
+        <div className="flex gap-3 w-full md:w-auto">
+          <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-zinc-200 rounded-xl font-bold text-[13px] text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 hover:border-zinc-300 transition-all shadow-sm cursor-pointer active:scale-95">
+            <FileSpreadsheet size={18} className="text-emerald-600" /> Excel
+          </button>
+          <button onClick={handleExportPDF} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-zinc-900 text-white rounded-xl font-bold text-[13px] hover:bg-zinc-800 hover:shadow-lg hover:shadow-zinc-900/10 transition-all active:scale-95 cursor-pointer">
+            {isExportingPDF ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />} PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Filters Card */}
+      <div className="bg-white p-6 rounded-[24px] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)] border border-zinc-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-x-5 gap-y-2">
+          <Input label="Mulai" type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} />
+          <Input label="Selesai" type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} />
+          <Select label="Tipe" name="type" value={filters.type} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Tipe' }, { value: 'IN', label: 'Masuk' }, { value: 'OUT', label: 'Keluar' }]} />
+          <Select label="Perusahaan" name="perusahaanId" value={filters.perusahaanId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Perusahaan' }, ...(companies?.map((c: any) => ({ value: c.id, label: c.nama })) || [])]} />
+          <Select label="Proyek" name="projectId" value={filters.projectId} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Proyek' }, ...(projects?.map((p: any) => ({ value: p.id, label: p.name })) || [])]} />
+          <Select label="Jabatan" name="role" value={filters.role} onChange={handleFilterChange} options={[{ value: '', label: 'Semua Jabatan' }, ...(roles?.map((r: any) => ({ value: r.name, label: r.name })) || [])]} />
+        </div>
+      </div>
+
+      {/* Table Area */}
+      <div ref={tableRef}>
+        <DataTable
+          title="Log Kehadiran"
+          columns={columns}
+          data={data?.items || []}
+          serverSide
+          searchTerm={filters.search}
+          onSearchChange={(s) => setFilters(f => ({ ...f, search: s }))}
+        />
+
+        {/* Manual Pagination Info */}
+        <div className="mt-4 flex justify-between items-center px-2">
+          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Total Record: {data?.items.length || 0}</span>
+          <div className="flex gap-2">
+            <button onClick={handlePrevPage} disabled={cursorHistory.length === 0} className="p-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-500 disabled:opacity-30 cursor-pointer hover:bg-zinc-50 hover:text-zinc-900 transition-colors"><ChevronLeft size={18} strokeWidth={2.5} /></button>
+            <button onClick={handleNextPage} disabled={!data?.meta.hasNextPage} className="p-2.5 rounded-xl bg-zinc-900 text-white disabled:opacity-30 cursor-pointer hover:bg-zinc-800 transition-colors shadow-md shadow-zinc-900/10"><ChevronRight size={18} strokeWidth={2.5} /></button>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal Detail Absensi */}
+      <Modal isOpen={!!selectedAttendance} onClose={() => setSelectedAttendance(null)} title="Detail Validasi Kehadiran">
+        {selectedAttendance && (
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* Foto Biometrik */}
+            <div className="w-full md:w-2/5">
+              <div className="rounded-3xl overflow-hidden border-[8px] border-white shadow-xl shadow-zinc-200/50 aspect-[3/4] bg-zinc-100 relative group">
+                {selectedAttendance.capturedImageUrl ? (
+                  <img src={selectedAttendance.capturedImageUrl} className="w-full h-full object-cover" alt="Captured Biometric" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center flex-col text-zinc-400 gap-3">
+                    <UserCircle2 size={64} strokeWidth={1} />
+                    <span className="text-sm font-medium">Foto tidak tersedia</span>
+                  </div>
+                )}
+                <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md p-3.5 rounded-2xl border border-white shadow-sm flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Confidence Score</span>
+                  <span className="text-sm font-black text-zinc-900">{selectedAttendance.confidence ? `${(selectedAttendance.confidence * 100).toFixed(1)}%` : 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Info & Map */}
+            <div className="flex-1 flex flex-col gap-6">
+              <div className="bg-white p-7 rounded-3xl border border-zinc-100 shadow-sm shadow-zinc-100/50">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h2 className="text-2xl font-black text-zinc-900 tracking-tight">{selectedAttendance.userName}</h2>
+                    <p className="font-bold text-zinc-500 mt-1">{selectedAttendance.userRole} <span className="font-normal text-zinc-300 mx-1.5">|</span> {selectedAttendance.userNik || '-'}</p>
+                  </div>
+                  <span className={`px-4 py-2 rounded-xl text-[11px] font-black tracking-widest border ${selectedAttendance.type === 'IN'
+                    ? 'bg-emerald-50/80 text-emerald-600 border-emerald-200/60'
+                    : 'bg-amber-50/80 text-amber-600 border-amber-200/60'
+                    }`}>
+                    {selectedAttendance.type === 'IN' ? 'MASUK' : 'KELUAR'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-y-6 gap-x-4 pt-6 border-t border-zinc-100">
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Waktu Pencatatan</p>
+                    <p className="text-[14px] font-bold text-zinc-900">{formatDate(selectedAttendance.recordedAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Proyek / Lokasi</p>
+                    <p className="text-[14px] font-bold text-zinc-900">{selectedAttendance.projectName || 'Pusat / Tidak ada'}</p>
+                  </div>
+                  <div className="col-span-2 bg-zinc-50 p-4 rounded-2xl border border-zinc-100 mt-2">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Direkam Oleh</p>
+                    <p className="text-[13px] font-bold text-zinc-700">
+                      {selectedAttendance.recordedByName} <span className="font-medium text-zinc-500">({selectedAttendance.recordedByRole})</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Google Maps Embed */}
+              <div className="flex-1 min-h-[220px] flex flex-col">
+                <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2 mb-3 ml-1">
+                  <MapPin size={14} className="text-zinc-400" /> Kordinat GPS
+                </p>
+                <div className="flex-1 rounded-3xl overflow-hidden border border-zinc-200 shadow-inner bg-zinc-100 relative">
+                  {selectedAttendance.latitude && googleMapsKey ? (
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      frameBorder="0"
+                      style={{ border: 0, minHeight: '220px' }}
+                      src={`https://www.google.com/maps/embed/v1/place?key=${googleMapsKey}&q=${selectedAttendance.latitude},${selectedAttendance.longitude}&zoom=16`}
+                      allowFullScreen
+                    ></iframe>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-zinc-400 py-10">
+                      <MapPin size={32} className="mb-3 opacity-40" />
+                      <span className="font-bold text-sm">Lokasi GPS tidak tersedia</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+};
+
+export default AttendanceRecap;
+</file>
+
+<file path="src/pages/Dashboard.tsx">
+const Dashboard = () => {
+  return (
+    <div>Dashboard</div>
+  )
+}
+
+export default Dashboard
+</file>
+
+<file path="src/pages/Home.tsx">
+const Home = () => {
+  return (
+    <>
+      <h1>
+        Homepage
+      </h1>
+    </>
+  );
+};
+
+export default Home;
+</file>
+
+<file path="src/pages/Login.tsx">
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import Input from '../components/shared/Input';
+import { Loader2 } from 'lucide-react';
+
+const Login = () => {
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [generalError, setGeneralError] = useState('');
+
+  const navigate = useNavigate();
+  const { login, isLoading } = useAuth();
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: undefined }));
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGeneralError('');
+    setErrors({});
+
+    const result = await login(formData.email, formData.password);
+    if (result.success) {
+      navigate('/', { replace: true });
+    } else {
+      if (result.errors && Array.isArray(result.errors)) {
+        const fieldErrors = result.errors.reduce((acc, err) => {
+          acc[err.field] = err.message;
+          return acc;
+        }, {} as Record<string, string>);
+        setErrors(fieldErrors);
+      } else {
+        setGeneralError(result.message || 'Kredensial tidak valid. Silakan coba lagi.');
+      }
+    }
+  };
+
+  return (
+    // Background diubah ke warna zinc-50 (#fafafa) murni agar teduh
+    <div className="min-h-screen flex items-center justify-center bg-[#fafafa] p-4">
+
+      {/* Shadow dibuat sangat soft dan blur tinggi (premium feel) */}
+      <div className="max-w-md w-full bg-white rounded-[24px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-zinc-100 p-8 sm:p-12">
+
+        <div className="text-center mb-10">
+          <div className="w-14 h-14 bg-zinc-900 rounded-[14px] mx-auto flex items-center justify-center text-white font-black text-2xl shadow-xl shadow-zinc-900/10 mb-6 tracking-tighter">
+            B
+          </div>
+          <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Bumantara</h1>
+          <p className="text-[13px] text-zinc-500 mt-2 font-medium">Sistem Manajemen & Absensi</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-5">
+          {generalError && (
+            <div className="p-4 bg-red-50/80 text-red-600 text-[13px] font-semibold rounded-xl border border-red-100 flex items-center justify-center animate-in fade-in slide-in-from-top-2">
+              {generalError}
+            </div>
+          )}
+
+          <Input
+            label="Email Address"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            error={errors.email}
+            placeholder="admin@bumantara.com"
+          />
+          <Input
+            label="Password"
+            name="password"
+            type="password"
+            value={formData.password}
+            onChange={handleChange}
+            error={errors.password}
+            placeholder="••••••••"
+          />
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={`w-full bg-zinc-900 text-white font-bold text-[13px] uppercase tracking-wider py-4 rounded-xl transition-all duration-300 mt-8 flex justify-center items-center gap-2 
+            ${isLoading ? 'opacity-70 cursor-wait' : 'hover:bg-zinc-800 hover:shadow-xl hover:shadow-zinc-900/10 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer'}`}
+          >
+            {isLoading ? (
+              <><Loader2 size={18} className="animate-spin" /> Memproses...</>
+            ) : (
+              'Masuk Sistem'
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+</file>
+
+<file path="src/pages/PageLoader.tsx">
+const PageLoader = () => (
+  <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-sm">
+    <div className="relative flex items-center justify-center w-16 h-16">
+      <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
+      <div className="absolute inset-0 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+      <div className="w-2 h-2 bg-black rounded-full animate-pulse"></div>
+    </div>
+    <p className="mt-4 text-sm font-medium text-gray-500 animate-pulse">Memuat data...</p>
+  </div>
+);
+
+export default PageLoader;
+</file>
+
+<file path="src/providers/AuthProvider.tsx">
+import { useState, useEffect, type ReactNode, useCallback } from 'react';
+import { AuthContext } from '../context/AuthContext';
+import { authService } from '../services/auth.service';
+import type { ActionResult } from '../types/common';
+import { storage } from '../utils/storage';
+import { handleApiError } from '../utils/errorHandler';
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!storage.getToken());
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const logout = useCallback(() => {
+    storage.clearAuth();
+    setIsAuthenticated(false);
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => logout();
+    window.addEventListener('auth-unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth-unauthorized', handleUnauthorized);
+  }, [logout]);
+
+  const login = async (email: string, pass: string): Promise<ActionResult> => {
+    setIsLoading(true);
+    try {
+      const response = await authService.login(email, pass);
+      if (response.success && response.data) {
+        storage.setToken(response.data.token);
+        storage.setUser(response.data.user);
+        setIsAuthenticated(true);
+        return { success: true };
+      }
+      return { success: false, message: response.message || 'Login gagal.' };
+    } catch (error) {
+      return handleApiError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  return (
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+</file>
+
+<file path="src/providers/QueryProvider.tsx">
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { useState, type ReactNode } from 'react';
+
+export const QueryProvider = ({ children }: { children: ReactNode }) => {
+
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 1000 * 60 * 5,
+            gcTime: 1000 * 60 * 15,
+            refetchOnWindowFocus: false,
+            retry: 1,
+          },
+        },
+      })
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} position="bottom" />
+    </QueryClientProvider>
+  );
+};
+</file>
+
+<file path="src/services/attendance.service.ts">
+import api from "../lib/axios";
+import type { ApiResponse } from "../types/api_response";
+import type {
+  Attendance,
+  AttendanceHistoryParams,
+  CursorPaginatedData,
+} from "../types/models/attendance";
+export const attendanceService = {
+  getHistory: async (params: AttendanceHistoryParams) => {
+    const apiParams = { ...params };
+
+    if (apiParams.startDate) {
+      apiParams.startDate = new Date(
+        `${apiParams.startDate}T00:00:00`,
+      ).toISOString();
+    }
+
+    if (apiParams.endDate) {
+      apiParams.endDate = new Date(
+        `${apiParams.endDate}T23:59:59`,
+      ).toISOString();
+    }
+
+    const { data } = await api.get<
+      ApiResponse<CursorPaginatedData<Attendance>>
+    >("/attendance/history", { params: apiParams });
+    return data.data;
+  },
+};
+</file>
+
+<file path="src/services/auth.service.ts">
+import api from "../lib/axios";
+import type { ApiResponse } from "../types/api_response";
+import type { LoginData } from "../types/models/user";
+
+export const authService = {
+  login: async (email: string, pass: string) => {
+    const response = await api.post<ApiResponse<LoginData>>("/auth/login", {
+      email,
+      password: pass,
+    });
+    return response.data;
+  },
+};
+</file>
+
+<file path="src/types/api_response.ts">
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+</file>
+
+<file path="src/types/common.ts">
+export interface FieldError {
+  field: string;
+  message: string;
+}
+
+export interface ActionResult<T = void> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  errors?: FieldError[];
+}
+</file>
+
+<file path="src/types/models/attendance.ts">
+export interface Attendance {
+  id: string;
+  userName: string;
+  userRole: string;
+  userNik: string | null;
+  recordedByName: string;
+  recordedByRole: string;
+  isSelfAttendance: boolean;
+  recordedAt: string;
+  confidence: number | null;
+  capturedImageUrl: string | null;
+  type: "IN" | "OUT";
+  latitude: number | null;
+  longitude: number | null;
+  projectId: string | null;
+  projectName: string | null;
+  message?: string;
+}
+
+export interface AttendanceHistoryParams {
+  limit?: number;
+  cursor?: string;
+  search?: string;
+  type?: "IN" | "OUT" | "";
+  sortOrder?: "desc" | "asc";
+  startDate?: string;
+  endDate?: string;
+  role?: string;
+  perusahaanId?: string;
+  projectId?: string;
+}
+
+export interface CursorPaginationMeta {
+  nextCursor: string | null;
+  hasNextPage: boolean;
+}
+
+export interface CursorPaginatedData<T> {
+  items: T[];
+  meta: CursorPaginationMeta;
+}
+</file>
+
+<file path="src/types/models/user.ts">
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+}
+
+export interface LoginData {
+  token: string;
+  user: User;
+}
+</file>
+
+<file path="src/utils/errorHandler.ts">
+import { isAxiosError } from "axios";
+import type { ActionResult } from "../types/common";
+
+export const handleApiError = (error: unknown): ActionResult => {
+  if (import.meta.env.DEV) {
+    console.error("API Request failed:", error);
+  }
+
+  if (isAxiosError(error)) {
+    return {
+      success: false,
+      message:
+        error.response?.data?.message ||
+        "Terjadi kesalahan pada server. Silakan coba lagi.",
+      errors: error.response?.data?.error,
+    };
+  }
+
+  return {
+    success: false,
+    message:
+      error instanceof Error
+        ? error.message
+        : "Terjadi kesalahan tidak terduga.",
+  };
+};
+</file>
+
+<file path="src/utils/formatters.ts">
+export const formatRupiah = (angka: string | number): string => {
+  if (!angka) return "Rp 0";
+
+  const numberValue = typeof angka === "string" ? parseFloat(angka) : angka;
+  if (isNaN(numberValue)) return "Rp 0";
+
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numberValue);
+};
+
+export const formatDate = (dateString: string): string => {
+  if (!dateString) return "-";
+
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+};
+</file>
+
+<file path="src/utils/storage.ts">
+import type { User } from "../types/models/user";
+
+const STORAGE_KEYS = {
+  TOKEN: "token",
+  USER: "user",
+} as const;
+
+const getItemSafe = <T>(key: string): T | null => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? (JSON.parse(item) as T) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const storage = {
+  getToken: () => localStorage.getItem(STORAGE_KEYS.TOKEN),
+  setToken: (token: string) => localStorage.setItem(STORAGE_KEYS.TOKEN, token),
+
+  getUser: () => getItemSafe<User>(STORAGE_KEYS.USER),
+  setUser: (user: User) =>
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user)),
+
+  clearAuth: () => {
+    Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
+  },
+};
+</file>
+
+<file path="tsconfig.json">
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+</file>
+
+<file path="vite.config.ts">
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import tailwindcss from "@tailwindcss/vite";
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+});
+</file>
+
+</files>
