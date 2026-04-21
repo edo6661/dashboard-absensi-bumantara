@@ -7,9 +7,12 @@ import { AuthProvider } from './providers/AuthProvider';
 import { QueryProvider } from './providers/QueryProvider';
 
 const Login = lazy(() => import('./pages/Login'));
-// Menggunakan Dashboard sebagai halaman utama
+
 const Dashboard = lazy(() => import('./pages/Dashboard'));
-const AttendanceRecap = lazy(() => import('./pages/Attendance/AttendanceRecap'));
+const AttendanceRecap = lazy(() => import('./pages/Attendance/AttendanceRecap'))
+
+const KaryawanList = lazy(() => import('./pages/Karyawan/KaryawanList'));
+
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
@@ -29,6 +32,7 @@ const App = () => {
               <Route path="/" element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
                 <Route index element={<Dashboard />} />
                 <Route path="attendance/recap" element={<AttendanceRecap />} />
+                <Route path="users" element={<KaryawanList />} />
               </Route>
             </Routes>
           </Suspense>

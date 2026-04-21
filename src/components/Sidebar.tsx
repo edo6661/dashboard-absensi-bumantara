@@ -1,6 +1,6 @@
 // src/components/Sidebar.tsx
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, LogOut, X, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
@@ -15,6 +15,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Rekap Absensi', path: '/attendance/recap', icon: ClipboardList },
+    { name: 'Karyawan', path: '/users', icon: Users },
   ];
 
   return (
