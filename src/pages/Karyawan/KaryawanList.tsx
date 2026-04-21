@@ -1,10 +1,10 @@
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Users, Filter } from 'lucide-react';
+import { Users, Filter, Maximize2, UserCircle2 } from 'lucide-react';
 
 import DataTable from '../../components/shared/DataTable';
 import Select from '../../components/shared/Select';
+import Modal from '../../components/shared/Modal';
 import { userService } from '../../services/user.service';
 import type { User, UserFilterParams } from '../../types/models/user';
 import UserEditModal from './components/UserEditModal';
@@ -21,6 +21,9 @@ const KaryawanList = () => {
   const [cursorHistory, setCursorHistory] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
+
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   const { data } = useQuery({
     queryKey: ['users-list', filters],
     queryFn: () => userService.getUsers(filters),
@@ -36,7 +39,6 @@ const KaryawanList = () => {
     setFilters(prev => ({ ...prev, search: searchTerm, cursor: undefined }));
     setCursorHistory([]);
   };
-
 
   const handleNextPage = () => {
     if (data?.meta?.nextCursor) {
@@ -59,13 +61,33 @@ const KaryawanList = () => {
       header: 'Karyawan',
       accessor: 'name',
       render: (val: string, row: User) => (
-        <div>
-          <p className="font-bold text-slate-800">{val}</p>
-          <p className="text-[12px] text-slate-500 font-medium mt-0.5">{row.nik || 'No NIK'} • {row.email || '-'}</p>
+        <div className='flex items-center gap-3'>
+          <div
+            className={`relative w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-slate-200/80 shadow-sm ${row.registeredFaceUrl ? 'cursor-pointer group' : ''}`}
+            onClick={() => {
+              if (row.registeredFaceUrl) setPreviewImage(row.registeredFaceUrl);
+            }}
+          >
+            {row.registeredFaceUrl ? (
+              <>
+                <img src={row.registeredFaceUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Preview" />
+                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
+                  <Maximize2 size={16} className="text-white" />
+                </div>
+              </>
+            ) : (
+              <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                <UserCircle2 size={24} className="text-slate-400" />
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="font-bold text-slate-800">{val}</p>
+            <p className="text-[12px] text-slate-500 font-medium mt-0.5">{row.nik || 'No NIK'} </p>
+          </div>
         </div>
       )
     },
-
     {
       header: 'Perusahaan',
       accessor: 'perusahaanNama',
@@ -75,7 +97,6 @@ const KaryawanList = () => {
         </span>
       )
     },
-
     {
       header: 'Role',
       accessor: 'role',
@@ -132,6 +153,7 @@ const KaryawanList = () => {
               { value: 'PENGAWAS', label: 'Pengawas' },
               { value: 'MANDOR', label: 'Mandor' },
               { value: 'PEKERJA', label: 'Pekerja' },
+              { value: 'KARYAWAN', label: 'Karyawan' },
             ]}
           />
           <Select
@@ -168,6 +190,23 @@ const KaryawanList = () => {
         onClose={() => setSelectedUser(null)}
         user={selectedUser}
       />
+
+      <Modal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        title="Preview Foto Karyawan"
+      >
+        {previewImage && (
+          <div className="flex justify-center items-center bg-slate-100 rounded-2xl overflow-hidden border-[6px] border-white shadow-lg p-2">
+            <img
+              src={previewImage}
+              alt="Preview Full"
+              className="max-w-full max-h-[60vh] object-contain rounded-xl"
+            />
+          </div>
+        )}
+      </Modal>
+
     </div>
   );
 };
