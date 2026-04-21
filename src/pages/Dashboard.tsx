@@ -82,8 +82,8 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 xl:gap-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Ikhtisar Operasional</h1>
-          <p className="text-slate-500 text-[13px] sm:text-[14px] font-medium mt-1">Status kehadiran dan aktivitas real-time.</p>
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">Ikhtisar Operasional</h1>
+          <p className="text-white text-[13px] sm:text-[14px] font-medium mt-1">Status kehadiran dan aktivitas real-time.</p>
         </div>
 
         {/* Filter dibuat horizontal scrollable di mobile agar tidak memakan ruang tinggi */}
