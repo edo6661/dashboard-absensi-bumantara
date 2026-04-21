@@ -52,8 +52,8 @@ const Dashboard = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Ikhtisar Operasional</h1>
-        <p className="text-slate-500 text-[14px] font-medium mt-1">Status kehadiran dan aktivitas real-time hari ini.</p>
+        <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Ikhtisar Operasional</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-[14px] font-medium mt-1">Status kehadiran dan aktivitas real-time hari ini.</p>
       </div>
       {/* Top Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
