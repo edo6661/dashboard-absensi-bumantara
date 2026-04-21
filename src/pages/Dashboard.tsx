@@ -1,30 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
 import { Users, Building2, MapPin, Loader2, ArrowRight, Briefcase, Clock, ArrowRightLeft } from 'lucide-react';
-import api from '../lib/axios';
-import type { ApiResponse } from '../types/api_response';
-import type { Attendance, PaginatedData } from '../types/models/attendance';
-import { formatDate } from '../utils/formatters';
-
+import type { Attendance } from '../types/models/attendance'; import { formatDate } from '../utils/formatters';
+import { attendanceService } from '../services/attendance.service';
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
-
 const Dashboard = () => {
-  // 1. Fetching Semua Data Absensi Hari Ini (IN & OUT)
   const { data: attendanceData, isLoading } = useQuery({
     queryKey: ['dashboard-attendance', getTodayDateString()],
     queryFn: async () => {
       const today = getTodayDateString();
-      const res = await api.get<ApiResponse<PaginatedData<Attendance>>>('/attendance/history', {
-        params: {
-          startDate: today,
-          endDate: today,
-          limit: 1000,
-          sortOrder: 'desc' // Memastikan data terbaru di atas
-        }
+      const res = await attendanceService.getHistory({
+        startDate: today,
+        endDate: today,
+        limit: 1000,
+        sortOrder: 'desc'
       });
-      return res.data.data.items;
+      return res.items;
     }
   });
-
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400 gap-3">
@@ -33,47 +25,29 @@ const Dashboard = () => {
       </div>
     );
   }
-
   const allAttendances = attendanceData || [];
-
-  // Pisahkan data absen MASUK untuk keperluan perhitungan "Hadir"
   const attendancesIn = allAttendances.filter(a => a.type === 'IN');
-
-  // 2. Olah Data (Grouping)
-
-  // Total Pekerja Unik Hadir
   const uniqueUsersPresent = new Set(attendancesIn.map(a => a.userNik || a.userName)).size;
-
-  // Total Absen Keluar
   const totalOut = allAttendances.filter(a => a.type === 'OUT').length;
-
-  // Grouping per Proyek (Dari data absen Masuk)
   const projectSummary = attendancesIn.reduce((acc: Record<string, number>, curr: Attendance) => {
     const projectName = curr.projectName || 'Pusat / Tanpa Proyek';
     if (!acc[projectName]) acc[projectName] = 0;
     acc[projectName]++;
     return acc;
   }, {});
-
   const projectSummaryArray = Object.entries(projectSummary)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
-
-  // Grouping per Jabatan/Role (Dari data absen Masuk)
   const roleSummary = attendancesIn.reduce((acc: Record<string, number>, curr: Attendance) => {
     const roleName = curr.userRole || 'Tidak Diketahui';
     if (!acc[roleName]) acc[roleName] = 0;
     acc[roleName]++;
     return acc;
   }, {});
-
   const roleSummaryArray = Object.entries(roleSummary)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
-
-  // Ambil 5 aktivitas terbaru
   const recentActivities = allAttendances.slice(0, 5);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -81,7 +55,6 @@ const Dashboard = () => {
         <h1 className="text-2xl font-black text-slate-800 tracking-tight">Ikhtisar Operasional</h1>
         <p className="text-slate-500 text-[14px] font-medium mt-1">Status kehadiran dan aktivitas real-time hari ini.</p>
       </div>
-
       {/* Top Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card: Total Hadir */}
@@ -94,7 +67,6 @@ const Dashboard = () => {
             <h2 className="text-3xl font-black text-slate-800 tracking-tight">{uniqueUsersPresent} <span className="text-sm font-medium text-slate-500 tracking-normal">Orang</span></h2>
           </div>
         </div>
-
         {/* Card: Total Proyek */}
         <div className="bg-white p-6 rounded-[20px] shadow-sm border border-slate-200/80 flex items-center gap-5">
           <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
@@ -105,7 +77,6 @@ const Dashboard = () => {
             <h2 className="text-3xl font-black text-slate-800 tracking-tight">{projectSummaryArray.length} <span className="text-sm font-medium text-slate-500 tracking-normal">Lokasi</span></h2>
           </div>
         </div>
-
         {/* Card: Pulang */}
         <div className="bg-white p-6 rounded-[20px] shadow-sm border border-slate-200/80 flex items-center gap-5">
           <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
@@ -117,12 +88,9 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
         {/* Kolom Kiri: Distribusi Proyek & Jabatan (Makan 2 Kolom di LG) */}
         <div className="lg:col-span-2 space-y-6">
-
           {/* Breakdown per Proyek */}
           <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
@@ -149,7 +117,6 @@ const Dashboard = () => {
               )}
             </div>
           </div>
-
           {/* Breakdown per Jabatan */}
           <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
@@ -171,9 +138,7 @@ const Dashboard = () => {
               )}
             </div>
           </div>
-
         </div>
-
         {/* Kolom Kanan: Aktivitas Terkini (Makan 1 Kolom di LG) */}
         <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
           <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
@@ -182,7 +147,6 @@ const Dashboard = () => {
               <h3 className="text-[15px] font-bold text-slate-800">Aktivitas Terkini</h3>
             </div>
           </div>
-
           <div className="p-6 flex-1">
             {recentActivities.length > 0 ? (
               <div className="space-y-6">
@@ -207,17 +171,14 @@ const Dashboard = () => {
               </div>
             )}
           </div>
-
           <div className="p-4 border-t border-slate-100 bg-slate-50/50">
             <a href="/attendance/recap" className="text-[12px] font-bold text-indigo-600 uppercase tracking-widest flex items-center justify-center gap-2 hover:text-indigo-700 transition-colors">
               Lihat Semua Log <ArrowRight size={14} />
             </a>
           </div>
         </div>
-
       </div>
     </div>
   )
 }
-
 export default Dashboard;
