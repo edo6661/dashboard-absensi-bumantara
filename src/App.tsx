@@ -1,4 +1,3 @@
-// src/App.tsx
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import PageLoader from './pages/PageLoader';
@@ -8,8 +7,8 @@ import { AuthProvider } from './providers/AuthProvider';
 import { QueryProvider } from './providers/QueryProvider';
 
 const Login = lazy(() => import('./pages/Login'));
-const Home = lazy(() => import('./pages/Home'));
-// Daftarkan route baru di sini
+// Menggunakan Dashboard sebagai halaman utama
+const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AttendanceRecap = lazy(() => import('./pages/Attendance/AttendanceRecap'));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -28,7 +27,7 @@ const App = () => {
               <Route path="/login" element={<Login />} />
 
               <Route path="/" element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
-                <Route index element={<Home />} />
+                <Route index element={<Dashboard />} />
                 <Route path="attendance/recap" element={<AttendanceRecap />} />
               </Route>
             </Routes>
