@@ -1,6 +1,5 @@
 // src/components/Navbar.tsx
 import { useLocation } from 'react-router-dom';
-import { Bell, ChevronDown } from 'lucide-react';
 
 const Navbar = () => {
   const location = useLocation();
