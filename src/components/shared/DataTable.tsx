@@ -104,21 +104,21 @@ const DataTable = ({
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-          <div className="relative w-full sm:w-72 group">
+          <div className="relative w-full sm:w-64 group">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
             <input
               type="text"
               placeholder="Cari data..."
               value={localSearchTerm}
               onChange={(e) => setLocalSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-600/10 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
             />
           </div>
 
           {onAdd && (
             <button
               onClick={onAdd}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/20 transition-all duration-300 font-bold text-[13px] active:scale-95 cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-lg transition-all duration-300 font-bold text-[13px] active:scale-95 cursor-pointer"
             >
               <Plus size={16} strokeWidth={2.5} />
               Tambah Data

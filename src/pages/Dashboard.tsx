@@ -80,28 +80,32 @@ const Dashboard = () => {
   ];
   return (
     <div className="space-y-6">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 xl:gap-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Ikhtisar Operasional</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-[14px] font-medium mt-1">Status kehadiran dan aktivitas real-time.</p>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Ikhtisar Operasional</h1>
+          <p className="text-slate-500 text-[13px] sm:text-[14px] font-medium mt-1">Status kehadiran dan aktivitas real-time.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 w-fit shadow-sm">
-          <div className="flex items-center gap-2 px-3 text-slate-400 dark:text-slate-500 mr-1 border-r border-slate-100 dark:border-slate-700">
-            <CalendarDays size={16} />
-            <span className="text-[11px] font-bold uppercase tracking-wider">Rentang</span>
+
+        {/* Filter dibuat horizontal scrollable di mobile agar tidak memakan ruang tinggi */}
+        <div className="w-full xl:w-auto overflow-x-auto custom-scrollbar pb-2 xl:pb-0 -mx-4 px-4 xl:mx-0 xl:px-0">
+          <div className="flex items-center gap-1.5 p-1.5 bg-white rounded-2xl border border-slate-200 w-max shadow-sm">
+            <div className="flex items-center gap-2 px-3 text-slate-400 border-r border-slate-100 hidden sm:flex">
+              <CalendarDays size={16} />
+              <span className="text-[11px] font-bold uppercase tracking-wider">Rentang</span>
+            </div>
+            {filterOptions.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setTimeRange(opt.value)}
+                className={`px-3 sm:px-4 py-2 rounded-xl text-[12px] font-bold transition-all duration-300 cursor-pointer whitespace-nowrap ${timeRange === opt.value
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                  }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
-          {filterOptions.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setTimeRange(opt.value)}
-              className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-all duration-300 cursor-pointer ${timeRange === opt.value
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-            >
-              {opt.label}
-            </button>
-          ))}
         </div>
       </div>
       {isLoading ? (
