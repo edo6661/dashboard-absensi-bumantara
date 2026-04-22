@@ -8,35 +8,25 @@ import Modal from '../../components/shared/Modal';
 import { userService } from '../../services/user.service';
 import type { User, UserFilterParams } from '../../types/models/user';
 import UserEditModal from './components/UserEditModal';
-import api from '../../lib/axios'; // Tambahkan import api
 
 const KaryawanList = () => {
   const [filters, setFilters] = useState<UserFilterParams>({
     limit: 10,
     search: '',
-    role: 'KARYAWAN', // HARDCODE: Selalu fetch data yang role-nya KARYAWAN
+    role: '',
     status: '',
-    perusahaanId: '', // Tambahkan state untuk perusahaan
     cursor: undefined,
   });
 
   const [cursorHistory, setCursorHistory] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // 1. Ambil data user
   const { data } = useQuery({
     queryKey: ['users-list', filters],
     queryFn: () => userService.getUsers(filters),
-  });
-
-  // 2. Ambil data perusahaan untuk dropdown filter
-  const { data: companies } = useQuery({
-    queryKey: ['perusahaan'],
-    queryFn: async () => {
-      const res = await api.get('/perusahaan');
-      return res.data.data;
-    }
   });
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -108,6 +98,15 @@ const KaryawanList = () => {
       )
     },
     {
+      header: 'Role',
+      accessor: 'role',
+      render: (val: string) => (
+        <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[11px] font-bold rounded-md tracking-wider">
+          {val}
+        </span>
+      )
+    },
+    {
       header: 'Status',
       accessor: 'status',
       render: (val: string) => (
@@ -125,26 +124,15 @@ const KaryawanList = () => {
     }
   ];
 
-  // Urutkan perusahaan A-Z (Sama seperti best practice di modal edit sebelumnya)
-  const companyOptions = [
-    { value: '', label: 'Semua Perusahaan' },
-    { value: 'null', label: 'Pusat / Internal' }, // Opsi tambahan jika ingin mencari yang tidak punya perusahaan
-    ...(companies
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ?.map((c: any) => ({ value: c.id, label: c.nama }))
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .sort((a: any, b: any) => a.label.localeCompare(b.label)) || [])
-  ];
-
   return (
     <div className="space-y-6">
-      <div className="bg-white px-8 py-6 rounded-xl flex items-center gap-4 border border-slate-200/80 shadow-sm">
+      <div className="bg-white px-8 py-6 rounded-xl flex items-center gap-4">
         <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
           <Users size={24} strokeWidth={2.5} />
         </div>
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Manajemen Karyawan</h1>
-          <p className="text-slate-500 text-[14px] font-medium mt-1">Kelola data, penempatan perusahaan, dan kontrak khusus Karyawan.</p>
+          <p className="text-slate-500 text-[14px] font-medium mt-1">Kelola data, role, dan kontrak seluruh staf.</p>
         </div>
       </div>
 
@@ -154,13 +142,19 @@ const KaryawanList = () => {
           <h2 className="text-[15px] font-bold text-slate-800">Filter Pencarian</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-          {/* FILTER PERUSAHAAN (MENGGANTIKAN ROLE) */}
           <Select
-            label="Filter Perusahaan"
-            name="perusahaanId"
-            value={filters.perusahaanId}
+            label="Filter Role"
+            name="role"
+            value={filters.role}
             onChange={handleFilterChange}
-            options={companyOptions}
+            options={[
+              { value: '', label: 'Semua Role' },
+              { value: 'ADMIN', label: 'Admin' },
+              { value: 'PENGAWAS', label: 'Pengawas' },
+              { value: 'MANDOR', label: 'Mandor' },
+              { value: 'PEKERJA', label: 'Pekerja' },
+              { value: 'KARYAWAN', label: 'Karyawan' },
+            ]}
           />
           <Select
             label="Filter Status"
