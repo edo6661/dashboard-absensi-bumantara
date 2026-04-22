@@ -105,15 +105,18 @@ const Dashboard = () => {
     if (!allUsersData) return [];
 
 
-    const baselineCompany = allUsersData.reduce((acc: Record<string, number>, user) => {
+
+    const targetRole = 'KARYAWAN';
+    const validUsers = allUsersData.filter(user => user.role === targetRole);
+
+    const baselineCompany = validUsers.reduce((acc: Record<string, number>, user) => {
       const company = user.perusahaanNama || 'Pusat / Internal';
       acc[company] = (acc[company] || 0) + 1;
       return acc;
     }, {});
 
 
-
-    const inRecords = (attendanceData || []).filter(a => a.type === 'IN');
+    const inRecords = (attendanceData || []).filter(a => a.type === 'IN' && a.userRole === targetRole);
 
     const attendingCompany = inRecords.reduce((acc: Record<string, Set<string>>, curr) => {
       const company = curr.userPerusahaanNama || 'Pusat / Internal';
@@ -127,14 +130,17 @@ const Dashboard = () => {
     return Object.keys(baselineCompany).map(company => {
       const totalKaryawan = baselineCompany[company] || 0;
       const totalHadir = attendingCompany[company]?.size || 0;
-      const percentage = totalKaryawan > 0 ? Math.round((totalHadir / totalKaryawan) * 100) : 0;
+
+
+      const validTotalKaryawan = Math.max(totalKaryawan, totalHadir);
+      const percentage = validTotalKaryawan > 0 ? Math.round((totalHadir / validTotalKaryawan) * 100) : 0;
 
       return {
         name: company,
         PersentaseHadir: percentage,
         PersentaseAbsen: 100 - percentage,
         totalHadir,
-        totalKaryawan
+        totalKaryawan: validTotalKaryawan
       };
     }).sort((a, b) => b.PersentaseHadir - a.PersentaseHadir);
   }, [allUsersData, attendanceData]);
@@ -152,7 +158,6 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* ... [Header dan Filter Rentang Waktu tetap sama seperti sebelumnya] ... */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 xl:gap-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Ikhtisar Operasional</h1>
@@ -187,7 +192,6 @@ const Dashboard = () => {
         </div>
       ) : (
         <>
-          {/* ... [Grid 3 Kotak Data Tetap Sama, Hanya Data Saja Yang Berubah Berdasarkan Logic Baru] ... */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-6 rounded-[20px] shadow-sm border border-slate-200/80 flex items-center gap-5">
               <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
@@ -195,10 +199,9 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Karyawan Hadir</p>
-                <h2 className="text-3xl font-black text-slate-800 tracking-tight">{uniqueUsersPresent} <span className="text-sm font-medium text-slate-500 tracking-normal">Orang Unik</span></h2>
+                <h2 className="text-3xl font-black text-slate-800 tracking-tight">{uniqueUsersPresent} <span className="text-sm font-medium text-slate-500 tracking-normal">Orang</span></h2>
               </div>
             </div>
-            {/* ... Kotak lainnya (Lokasi Terpantau & Total Absen Keluar) */}
             <div className="bg-white p-6 rounded-[20px] shadow-sm border border-slate-200/80 flex items-center gap-5">
               <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
                 <Building2 size={28} strokeWidth={2} />
@@ -219,7 +222,6 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* BAGIAN BARU: CHART TINGKAT KEHADIRAN PERUSAHAAN */}
           <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
               <PieChartIcon size={18} className="text-indigo-600" />
@@ -249,7 +251,6 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
 
-              {/* DISTRIBUSI PROYEK (Sekarang Menampilkan Orang Unik) */}
               <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
                   <MapPin size={18} className="text-indigo-600" />
@@ -274,7 +275,6 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* DISTRIBUSI JABATAN (Sekarang Menampilkan Orang Unik) */}
               <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
                   <Briefcase size={18} className="text-indigo-600" />
@@ -298,7 +298,6 @@ const Dashboard = () => {
 
             </div>
 
-            {/* LOG TERAKHIR (Dengan Jam & Menit yang sudah diperbaiki di formatters) */}
             <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
               <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
                 <Clock size={18} className="text-indigo-600" />
@@ -316,7 +315,6 @@ const Dashboard = () => {
                             {act.type === 'IN' ? 'Masuk di ' : 'Keluar dari '}
                             <span className="text-slate-700 font-semibold">{act.projectName || 'Pusat'}</span>
                           </p>
-                          {/* formatDate di bawah ini sekarang akan memunculkan Jam dan Menit */}
                           <p className="text-[11px] font-bold text-slate-400 mt-2 uppercase tracking-widest">{formatDate(act.recordedAt)}</p>
                         </div>
                       </div>

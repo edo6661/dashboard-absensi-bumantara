@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Modal from '../../../components/shared/Modal';
@@ -17,14 +18,14 @@ interface UserEditModalProps {
 const UserEditModal = ({ isOpen, onClose, user }: UserEditModalProps) => {
   const queryClient = useQueryClient();
 
-  // Ambil data perusahaan dari backend
+
   const { data: companies } = useQuery({
     queryKey: ['perusahaan'],
     queryFn: async () => (await api.get('/perusahaan')).data.data
   });
 
-  // BEST PRACTICE: Inisialisasi state langsung. 
-  // State ini akan otomatis di-reset oleh React karena kita akan menggunakan prop 'key' di parent component.
+
+
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -33,7 +34,7 @@ const UserEditModal = ({ isOpen, onClose, user }: UserEditModalProps) => {
     status: user?.status || 'TETAP',
     kontrak: user?.kontrak || 1,
     perusahaanId: user?.perusahaanId || '',
-    password: '', // Opsional, dikosongkan secara default
+    password: '',
   });
 
   const updateMutation = useMutation({
@@ -42,10 +43,10 @@ const UserEditModal = ({ isOpen, onClose, user }: UserEditModalProps) => {
 
       const payload: Record<string, any> = { ...data };
 
-      // Hapus password jika kosong agar tidak diupdate di backend
+
       if (!payload.password) delete payload.password;
 
-      // Jika perusahaan kosong (Pusat), set menjadi null agar diterima oleh Prisma
+
       if (!payload.perusahaanId) payload.perusahaanId = null;
 
       return userService.updateUser(user.id, payload);
@@ -75,10 +76,12 @@ const UserEditModal = ({ isOpen, onClose, user }: UserEditModalProps) => {
 
   if (!user) return null;
 
-  // Format opsi dropdown untuk perusahaan
+
   const companyOptions = [
     { value: '', label: 'Pilih Perusahaan (Kosongkan jika di Pusat)' },
-    ...(companies?.map((c: any) => ({ value: c.id, label: c.nama })) || [])
+    ...(companies
+      ?.map((c: any) => ({ value: c.id, label: c.nama }))
+      .sort((a: any, b: any) => a.label.localeCompare(b.label)) || [])
   ];
 
   return (
