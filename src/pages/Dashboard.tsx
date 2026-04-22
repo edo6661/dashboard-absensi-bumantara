@@ -83,33 +83,38 @@ const Dashboard = () => {
     .map(([name, uniqueUsersSet]) => ({ name, count: uniqueUsersSet.size }))
     .sort((a, b) => b.count - a.count);
   const chartData = useMemo(() => {
-    if (!allUsersData) return [];
+    if (!allUsersData || !attendanceData) return [];
     const targetRole = 'KARYAWAN';
     const validUsers = allUsersData.filter(user => user.role === targetRole);
-    const baselineCompany = validUsers.reduce((acc: Record<string, number>, user) => {
+    const userCompanyMap = new Map<string, string>();
+    const baselineCompany: Record<string, number> = {};
+    validUsers.forEach(user => {
+      const userIdentifier = user.nik || user.name;
       const company = user.perusahaanNama || 'Pusat / Internal';
-      acc[company] = (acc[company] || 0) + 1;
-      return acc;
-    }, {});
-    const inRecords = (attendanceData || []).filter(a => a.type === 'IN' && a.userRole === targetRole);
+      userCompanyMap.set(userIdentifier, company);
+      baselineCompany[company] = (baselineCompany[company] || 0) + 1;
+    });
+    const inRecords = attendanceData.filter(a => a.type === 'IN' && a.userRole === targetRole);
     const attendingCompany = inRecords.reduce((acc: Record<string, Set<string>>, curr) => {
-      const company = curr.userPerusahaanNama || 'Pusat / Internal';
       const userIdentifier = curr.userNik || curr.userName;
-      if (!acc[company]) acc[company] = new Set();
-      acc[company].add(userIdentifier);
+      const company = userCompanyMap.get(userIdentifier);
+      if (company) {
+        if (!acc[company]) acc[company] = new Set();
+        acc[company].add(userIdentifier);
+      }
       return acc;
     }, {});
     return Object.keys(baselineCompany).map(company => {
       const totalKaryawan = baselineCompany[company] || 0;
       const totalHadir = attendingCompany[company]?.size || 0;
-      const validTotalKaryawan = Math.max(totalKaryawan, totalHadir);
-      const percentage = validTotalKaryawan > 0 ? Math.round((totalHadir / validTotalKaryawan) * 100) : 0;
+      const validHadir = Math.min(totalHadir, totalKaryawan);
+      const percentage = totalKaryawan > 0 ? Math.round((validHadir / totalKaryawan) * 100) : 0;
       return {
         name: company,
         PersentaseHadir: percentage,
         PersentaseAbsen: 100 - percentage,
-        totalHadir,
-        totalKaryawan: validTotalKaryawan
+        totalHadir: validHadir,
+        totalKaryawan: totalKaryawan
       };
     }).sort((a, b) => b.PersentaseHadir - a.PersentaseHadir);
   }, [allUsersData, attendanceData]);
