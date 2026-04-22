@@ -465,6 +465,165 @@ const Home = () => {
 export default Home;
 </file>
 
+<file path="src/pages/Karyawan/components/UserEditModal.tsx">
+import React, { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Modal from '../../../components/shared/Modal';
+import Input from '../../../components/shared/Input';
+import Select from '../../../components/shared/Select';
+import { userService } from '../../../services/user.service';
+import type { User } from '../../../types/models/user';
+import { Loader2 } from 'lucide-react';
+import api from '../../../lib/axios';
+
+interface UserEditModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  user: User | null;
+}
+
+const UserEditModal = ({ isOpen, onClose, user }: UserEditModalProps) => {
+  const queryClient = useQueryClient();
+
+  // Ambil data perusahaan dari backend
+  const { data: companies } = useQuery({
+    queryKey: ['perusahaan'],
+    queryFn: async () => (await api.get('/perusahaan')).data.data
+  });
+
+  // BEST PRACTICE: Inisialisasi state langsung. 
+  // State ini akan otomatis di-reset oleh React karena kita akan menggunakan prop 'key' di parent component.
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    nik: user?.nik || '',
+    role: user?.role || 'PEKERJA',
+    status: user?.status || 'TETAP',
+    kontrak: user?.kontrak || 1,
+    perusahaanId: user?.perusahaanId || '',
+    password: '', // Opsional, dikosongkan secara default
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      if (!user) throw new Error("No user selected");
+
+      const payload: Record<string, any> = { ...data };
+
+      // Hapus password jika kosong agar tidak diupdate di backend
+      if (!payload.password) delete payload.password;
+
+      // Jika perusahaan kosong (Pusat), set menjadi null agar diterima oleh Prisma
+      if (!payload.perusahaanId) payload.perusahaanId = null;
+
+      return userService.updateUser(user.id, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users-list'] });
+      onClose();
+    },
+    onError: (error) => {
+      alert("Gagal mengupdate data. Silakan coba lagi.");
+      console.error(error);
+    }
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? Number(value) : value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateMutation.mutate(formData);
+  };
+
+  if (!user) return null;
+
+  // Format opsi dropdown untuk perusahaan
+  const companyOptions = [
+    { value: '', label: 'Pilih Perusahaan (Kosongkan jika di Pusat)' },
+    ...(companies?.map((c: any) => ({ value: c.id, label: c.nama })) || [])
+  ];
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit Data Karyawan">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input label="Nama Lengkap" name="name" value={formData.name} onChange={handleChange} required />
+          <Input label="NIK" name="nik" value={formData.nik} onChange={handleChange} required />
+          <Input label="Email" type="email" name="email" value={formData.email} onChange={handleChange} />
+          <Input
+            label="Password Baru (Opsional)"
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            placeholder="Biarkan kosong jika tidak ingin diubah"
+          />
+          <Select
+            label="Role"
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
+            options={[
+              { value: 'ADMIN', label: 'Admin' },
+              { value: 'PENGAWAS', label: 'Pengawas' },
+              { value: 'MANDOR', label: 'Mandor' },
+              { value: 'PEKERJA', label: 'Pekerja' },
+            ]}
+          />
+          <Select
+            label="Perusahaan"
+            name="perusahaanId"
+            value={formData.perusahaanId}
+            onChange={handleChange}
+            options={companyOptions}
+          />
+          <Select
+            label="Status Karyawan"
+            name="status"
+            value={formData.status}
+            onChange={handleChange}
+            options={[
+              { value: 'TETAP', label: 'Tetap' },
+              { value: 'TIDAK_TETAP', label: 'Tidak Tetap / Kontrak' },
+            ]}
+          />
+          <Input
+            label="Jumlah Kontrak"
+            type="number"
+            name="kontrak"
+            value={formData.kontrak}
+            onChange={handleChange}
+            min={1}
+          />
+        </div>
+
+        <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-slate-100">
+          <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer">
+            Batal
+          </button>
+          <button
+            type="submit"
+            disabled={updateMutation.isPending}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-colors cursor-pointer disabled:opacity-70"
+          >
+            {updateMutation.isPending && <Loader2 size={16} className="animate-spin" />}
+            Simpan Perubahan
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+export default UserEditModal;
+</file>
+
 <file path="src/pages/Login.tsx">
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -681,6 +840,33 @@ export const authService = {
 };
 </file>
 
+<file path="src/services/user.service.ts">
+import api from "../lib/axios";
+import type { ApiResponse } from "../types/api_response";
+import type { PaginatedData } from "../types/models/attendance";
+import type { User, UserFilterParams } from "../types/models/user";
+
+export const userService = {
+  getUsers: async (params: UserFilterParams) => {
+    const { data } = await api.get<ApiResponse<PaginatedData<User>>>("/users", {
+      params,
+    });
+    return data.data;
+  },
+
+  updateUser: async (
+    id: string,
+    payload: Partial<User> & { password?: string },
+  ) => {
+    const { data } = await api.patch<ApiResponse<User>>(
+      `/users/${id}`,
+      payload,
+    );
+    return data;
+  },
+};
+</file>
+
 <file path="src/types/api_response.ts">
 export interface ApiResponse<T> {
   success: boolean;
@@ -700,20 +886,6 @@ export interface ActionResult<T = void> {
   message?: string;
   data?: T;
   errors?: FieldError[];
-}
-</file>
-
-<file path="src/types/models/user.ts">
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  role: string;
-}
-
-export interface LoginData {
-  token: string;
-  user: User;
 }
 </file>
 
@@ -878,50 +1050,6 @@ export default defineConfig({
 }
 </file>
 
-<file path="src/App.tsx">
-import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import PageLoader from './pages/PageLoader';
-import RootLayout from './components/layouts/RootLayout';
-import { useAuth } from './context/AuthContext';
-import { AuthProvider } from './providers/AuthProvider';
-import { QueryProvider } from './providers/QueryProvider';
-
-const Login = lazy(() => import('./pages/Login'));
-// Menggunakan Dashboard sebagai halaman utama
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const AttendanceRecap = lazy(() => import('./pages/Attendance/AttendanceRecap'));
-
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <>{children}</>;
-};
-
-const App = () => {
-  return (
-    <QueryProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-
-              <Route path="/" element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
-                <Route index element={<Dashboard />} />
-                <Route path="attendance/recap" element={<AttendanceRecap />} />
-              </Route>
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryProvider>
-  );
-};
-
-export default App;
-</file>
-
 <file path="src/index.css">
 @import "tailwindcss";
 
@@ -1012,6 +1140,223 @@ h6 {
 }
 </file>
 
+<file path="src/pages/Karyawan/KaryawanList.tsx">
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Users, Filter, Maximize2, UserCircle2 } from 'lucide-react';
+
+import DataTable from '../../components/shared/DataTable';
+import Select from '../../components/shared/Select';
+import Modal from '../../components/shared/Modal';
+import { userService } from '../../services/user.service';
+import type { User, UserFilterParams } from '../../types/models/user';
+import UserEditModal from './components/UserEditModal';
+
+const KaryawanList = () => {
+  const [filters, setFilters] = useState<UserFilterParams>({
+    limit: 10,
+    search: '',
+    role: '',
+    status: '',
+    cursor: undefined,
+  });
+
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  const { data } = useQuery({
+    queryKey: ['users-list', filters],
+    queryFn: () => userService.getUsers(filters),
+  });
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value, cursor: undefined }));
+    setCursorHistory([]);
+  };
+
+  const handleSearch = (searchTerm: string) => {
+    setFilters(prev => ({ ...prev, search: searchTerm, cursor: undefined }));
+    setCursorHistory([]);
+  };
+
+  const handleNextPage = () => {
+    if (data?.meta?.nextCursor) {
+      setCursorHistory(prev => [...prev, filters.cursor || '']);
+      setFilters(prev => ({ ...prev, cursor: data.meta.nextCursor! }));
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (cursorHistory.length > 0) {
+      const newHistory = [...cursorHistory];
+      const prevCursor = newHistory.pop();
+      setCursorHistory(newHistory);
+      setFilters(prev => ({ ...prev, cursor: prevCursor === '' ? undefined : prevCursor }));
+    }
+  };
+
+  const columns = [
+    {
+      header: 'Karyawan',
+      accessor: 'name',
+      render: (val: string, row: User) => (
+        <div className='flex items-center gap-3'>
+          <div
+            className={`relative w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-slate-200/80 shadow-sm ${row.registeredFaceUrl ? 'cursor-pointer group' : ''}`}
+            onClick={() => {
+              if (row.registeredFaceUrl) setPreviewImage(row.registeredFaceUrl);
+            }}
+          >
+            {row.registeredFaceUrl ? (
+              <>
+                <img src={row.registeredFaceUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Preview" />
+                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
+                  <Maximize2 size={16} className="text-white" />
+                </div>
+              </>
+            ) : (
+              <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                <UserCircle2 size={24} className="text-slate-400" />
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="font-bold text-slate-800">{val}</p>
+            <p className="text-[12px] text-slate-500 font-medium mt-0.5">{row.nik || 'No NIK'} </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      header: 'Perusahaan',
+      accessor: 'perusahaanNama',
+      render: (val: string | null) => (
+        <span className="text-[13px] font-bold text-slate-600">
+          {val || 'Pusat / Internal'}
+        </span>
+      )
+    },
+    {
+      header: 'Role',
+      accessor: 'role',
+      render: (val: string) => (
+        <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[11px] font-bold rounded-md tracking-wider">
+          {val}
+        </span>
+      )
+    },
+    {
+      header: 'Status',
+      accessor: 'status',
+      render: (val: string) => (
+        <span className={`px-2.5 py-1 text-[11px] font-bold rounded-md tracking-wide ${val === 'TETAP' ? 'bg-emerald-100/60 text-emerald-700' : 'bg-amber-100/60 text-amber-700'}`}>
+          {val === 'TETAP' ? 'TETAP' : 'KONTRAK'}
+        </span>
+      )
+    },
+    {
+      header: 'Kontrak Ke',
+      accessor: 'kontrak',
+      render: (val: number) => (
+        <span className="font-bold text-slate-700">{val || 1}</span>
+      )
+    }
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white px-8 py-6 rounded-xl flex items-center gap-4">
+        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+          <Users size={24} strokeWidth={2.5} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Manajemen Karyawan</h1>
+          <p className="text-slate-500 text-[14px] font-medium mt-1">Kelola data, role, dan kontrak seluruh staf.</p>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-[20px] shadow-sm border border-slate-200/80">
+        <div className="flex items-center gap-2.5 mb-5 border-b border-slate-100 pb-4">
+          <Filter size={18} className="text-slate-400" />
+          <h2 className="text-[15px] font-bold text-slate-800">Filter Pencarian</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+          <Select
+            label="Filter Role"
+            name="role"
+            value={filters.role}
+            onChange={handleFilterChange}
+            options={[
+              { value: '', label: 'Semua Role' },
+              { value: 'ADMIN', label: 'Admin' },
+              { value: 'PENGAWAS', label: 'Pengawas' },
+              { value: 'MANDOR', label: 'Mandor' },
+              { value: 'PEKERJA', label: 'Pekerja' },
+              { value: 'KARYAWAN', label: 'Karyawan' },
+            ]}
+          />
+          <Select
+            label="Filter Status"
+            name="status"
+            value={filters.status}
+            onChange={handleFilterChange}
+            options={[
+              { value: '', label: 'Semua Status' },
+              { value: 'TETAP', label: 'Tetap' },
+              { value: 'TIDAK_TETAP', label: 'Kontrak / Tidak Tetap' }
+            ]}
+          />
+        </div>
+      </div>
+
+      <DataTable
+        title="Daftar Karyawan"
+        columns={columns}
+        data={data?.items || []}
+        serverSide
+        searchTerm={filters.search}
+        onSearchChange={handleSearch}
+        onEdit={(row: User) => setSelectedUser(row)}
+        hasNextPage={data?.meta?.hasNextPage}
+        hasPrevPage={cursorHistory.length > 0}
+        onNextPage={handleNextPage}
+        onPrevPage={handlePrevPage}
+      />
+
+      <UserEditModal
+        key={selectedUser ? selectedUser.id : 'empty-modal'}
+        isOpen={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        user={selectedUser}
+      />
+
+      <Modal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        title="Preview Foto Karyawan"
+      >
+        {previewImage && (
+          <div className="flex justify-center items-center bg-slate-100 rounded-2xl overflow-hidden border-[6px] border-white shadow-lg p-2">
+            <img
+              src={previewImage}
+              alt="Preview Full"
+              className="max-w-full max-h-[60vh] object-contain rounded-xl"
+            />
+          </div>
+        )}
+      </Modal>
+
+    </div>
+  );
+};
+
+export default KaryawanList;
+</file>
+
 <file path="src/services/attendance.service.ts">
 import api from "../lib/axios";
 import type { ApiResponse } from "../types/api_response";
@@ -1094,6 +1439,87 @@ export interface PaginatedData<T> {
 }
 </file>
 
+<file path="src/types/models/user.ts">
+export interface User {
+  id: string;
+  name: string;
+  email: string | null;
+  nik: string | null;
+  role: string;
+  perusahaanId: string | null;
+  perusahaanNama?: string | null;
+  status: "TETAP" | "TIDAK_TETAP";
+  kontrak: number;
+  fotoKtp: string | null;
+  registeredFaceUrl: string | null;
+  createdAt: string;
+  alamat?: string | null;
+  statusPerkawinan?: string | null;
+}
+
+export interface UserFilterParams {
+  limit?: number;
+  cursor?: string;
+  search?: string;
+  role?: string;
+  status?: "TETAP" | "TIDAK_TETAP" | "";
+  orderBy?: string;
+}
+
+export interface LoginData {
+  token: string;
+  user: User;
+}
+</file>
+
+<file path="src/App.tsx">
+import { Suspense, lazy } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import PageLoader from './pages/PageLoader';
+import RootLayout from './components/layouts/RootLayout';
+import { useAuth } from './context/AuthContext';
+import { AuthProvider } from './providers/AuthProvider';
+import { QueryProvider } from './providers/QueryProvider';
+
+const Login = lazy(() => import('./pages/Login'));
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AttendanceRecap = lazy(() => import('./pages/Attendance/AttendanceRecap'))
+
+const KaryawanList = lazy(() => import('./pages/Karyawan/KaryawanList'));
+
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+};
+
+const App = () => {
+  return (
+    <QueryProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+
+              <Route path="/" element={<ProtectedRoute><RootLayout /></ProtectedRoute>}>
+                <Route index element={<Dashboard />} />
+                <Route path="attendance/recap" element={<AttendanceRecap />} />
+                <Route path="users" element={<KaryawanList />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryProvider>
+  );
+};
+
+export default App;
+</file>
+
 <file path="src/components/layouts/RootLayout.tsx">
 import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
@@ -1136,10 +1562,324 @@ const RootLayout = () => {
 export default RootLayout;
 </file>
 
+<file path="src/components/Navbar.tsx">
+// src/components/Navbar.tsx
+import { useLocation } from 'react-router-dom';
+import { Menu } from 'lucide-react';
+
+interface NavbarProps {
+  onMenuToggle?: () => void;
+}
+
+const Navbar = ({ onMenuToggle }: NavbarProps) => {
+  const location = useLocation();
+
+  const getPageTitle = () => {
+    if (location.pathname === '/') return 'Dashboard';
+    if (location.pathname.includes('/attendance/recap')) return 'Rekap Absensi';
+    return 'Bumantara ERP';
+  };
+
+  return (
+    <header className="h-[70px] sm:h-[76px] px-4 sm:px-8 flex items-center justify-between bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm/50 transition-all">
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* Tombol Hamburger untuk Mobile */}
+        <button
+          onClick={onMenuToggle}
+          className="p-2 -ml-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-600 rounded-xl md:hidden transition-colors cursor-pointer"
+          aria-label="Toggle Menu"
+        >
+          <Menu size={24} strokeWidth={2.5} />
+        </button>
+        <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight line-clamp-1">
+          {getPageTitle()}
+        </h1>
+      </div>
+    </header>
+  );
+};
+
+export default Navbar;
+</file>
+
+<file path="src/components/shared/DataTable.tsx">
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Search, FileX2, ChevronRight, ChevronDown, ChevronLeft } from 'lucide-react';
+
+interface Column {
+  header: string;
+  accessor: string;
+  render?: (value: any, row: any) => React.ReactNode;
+}
+
+interface DataTableProps {
+  title: string;
+  columns: Column[];
+  data: any[];
+  onAdd?: () => void;
+  onEdit?: (item: any) => void;
+  onDelete?: (item: any) => void;
+  expandedRowRender?: (row: any) => React.ReactNode;
+  serverSide?: boolean;
+  searchTerm?: string;
+  onSearchChange?: (val: string) => void;
+
+  // Pagination Offset (Lama)
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+
+  // Pagination Cursor (Baru)
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
+  onNextPage?: () => void;
+  onPrevPage?: () => void;
+}
+
+const DataTable = ({
+  title, columns, data, onAdd, onEdit, onDelete, expandedRowRender,
+  serverSide = false, searchTerm = '', onSearchChange,
+  page = 1, totalPages = 1, onPageChange,
+  hasNextPage, hasPrevPage, onNextPage, onPrevPage
+}: DataTableProps) => {
+
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    if (serverSide && onSearchChange) {
+      const timeoutId = setTimeout(() => {
+        if (localSearchTerm !== searchTerm) {
+          onSearchChange(localSearchTerm);
+        }
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [localSearchTerm, serverSide, onSearchChange, searchTerm]);
+
+  const toggleRow = (rowIndex: number) => {
+    setExpandedRows((prev) => ({ ...prev, [rowIndex]: !prev[rowIndex] }));
+  };
+
+  const filteredData = useMemo(() => {
+    if (serverSide) return data;
+    if (!localSearchTerm) return data;
+
+    const lowercasedTerm = localSearchTerm.toLowerCase();
+    return data.filter((row) => {
+      return columns.some((col) => {
+        const value = row[col.accessor];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(lowercasedTerm);
+      });
+    });
+  }, [data, localSearchTerm, columns, serverSide]);
+
+  const totalCols = columns.length + (expandedRowRender ? 1 : 0) + (onEdit || onDelete ? 1 : 0);
+
+  const getPageNumbers = () => {
+    const delta = 1;
+    const range = [];
+    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
+      range.push(i);
+    }
+    if (page - delta > 2) range.unshift("...");
+    if (page + delta < totalPages - 1) range.push("...");
+    range.unshift(1);
+    if (totalPages > 1) range.push(totalPages);
+    return range;
+  };
+
+  return (
+    <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden flex flex-col transition-all duration-300">
+
+      {/* Header Tabel */}
+      <div className="p-6 md:px-8 md:py-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 border-b border-slate-100">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <h2 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h2>
+            {!serverSide && (
+              <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-slate-200/60">
+                {filteredData.length} Data
+              </span>
+            )}
+          </div>
+          <p className="text-[13px] text-slate-500 font-medium">Kelola dan pantau informasi operasional secara real-time.</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+          <div className="relative w-full sm:w-64 group">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+            <input
+              type="text"
+              placeholder="Cari data..."
+              value={localSearchTerm}
+              onChange={(e) => setLocalSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
+            />
+          </div>
+
+          {onAdd && (
+            <button
+              onClick={onAdd}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-lg transition-all duration-300 font-bold text-[13px] active:scale-95 cursor-pointer"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              Tambah Data
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full text-sm text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50/50 text-slate-500 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200/60">
+              {expandedRowRender && <th className="px-4 py-4 w-10 text-center"></th>}
+              {columns.map((col, index) => (
+                <th key={index} className="px-6 py-4 whitespace-nowrap">
+                  {col.header}
+                </th>
+              ))}
+              {(onEdit || onDelete) && (
+                <th className="px-6 py-4 text-center whitespace-nowrap w-24">Aksi</th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredData.length > 0 ? (
+              filteredData.map((row, rowIndex) => {
+                const isExpanded = !!expandedRows[rowIndex];
+                return (
+                  <React.Fragment key={rowIndex}>
+                    <tr
+                      onClick={() => {
+                        if (expandedRowRender) toggleRow(rowIndex);
+                      }}
+                      className={`transition-colors duration-200 group ${expandedRowRender ? 'cursor-pointer hover:bg-slate-50/80' : 'hover:bg-slate-50/50'} ${isExpanded ? 'bg-slate-50/80' : ''}`}
+                    >
+                      {expandedRowRender && (
+                        <td className="px-4 py-4 text-center text-slate-400 group-hover:text-slate-600 transition-colors">
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </td>
+                      )}
+                      {columns.map((col, colIndex) => (
+                        <td key={colIndex} className="px-6 py-4 text-slate-700 whitespace-nowrap font-medium">
+                          {col.render ? col.render(row[col.accessor], row) : row[col.accessor]}
+                        </td>
+                      ))}
+                      {(onEdit || onDelete) && (
+                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {onEdit && (
+                              <button onClick={() => onEdit(row)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer">
+                                <Edit2 size={16} />
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button onClick={() => onDelete(row)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer">
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                    {isExpanded && expandedRowRender && (
+                      <tr className="bg-slate-50/30">
+                        <td colSpan={totalCols} className="px-6 py-6 border-b border-slate-100">
+                          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                            {expandedRowRender(row)}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={totalCols} className="px-6 py-24 text-center">
+                  <div className="flex flex-col items-center max-w-sm mx-auto">
+                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
+                      <FileX2 size={28} className="text-slate-400" />
+                    </div>
+                    <h3 className="text-slate-800 font-bold mb-1">Data tidak ditemukan</h3>
+                    <p className="text-slate-500 text-[13px] font-medium leading-relaxed">
+                      Coba sesuaikan filter atau kata kunci pencarian Anda untuk menemukan data.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination Dinamis (Offset atau Cursor) */}
+      {serverSide && (totalPages > 1 || hasNextPage !== undefined) && (
+        <div className="p-5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
+          <span className="text-[13px] font-medium text-slate-500">
+            {hasNextPage !== undefined ? (
+              "Navigasi Data Halaman"
+            ) : (
+              <>Halaman <strong className="text-slate-900">{page}</strong> dari <strong className="text-slate-900">{totalPages}</strong></>
+            )}
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            {/* Prev Button */}
+            <button
+              onClick={() => onPrevPage ? onPrevPage() : onPageChange?.(page - 1)}
+              disabled={onPrevPage ? !hasPrevPage : page === 1}
+              className="px-3 py-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200 flex items-center gap-1.5"
+            >
+              <ChevronLeft size={18} />
+              {hasNextPage !== undefined && <span className="text-sm font-semibold">Prev</span>}
+            </button>
+
+            {/* Offset Pagination Numbers (Disembunyikan jika mode Cursor aktif) */}
+            {hasNextPage === undefined && getPageNumbers().map((num, idx) => (
+              num === "..." ? (
+                <span key={idx} className="px-2 text-slate-400 font-bold tracking-widest">...</span>
+              ) : (
+                <button
+                  key={idx}
+                  onClick={() => onPageChange?.(num as number)}
+                  className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-[13px] font-bold transition-all cursor-pointer border ${page === num
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-200 hover:text-slate-900'
+                    }`}
+                >
+                  {num}
+                </button>
+              )
+            ))}
+
+            {/* Next Button */}
+            <button
+              onClick={() => onNextPage ? onNextPage() : onPageChange?.(page + 1)}
+              disabled={onNextPage ? !hasNextPage : page === totalPages}
+              className="px-3 py-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200 flex items-center gap-1.5"
+            >
+              {hasNextPage !== undefined && <span className="text-sm font-semibold">Next</span>}
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DataTable;
+</file>
+
 <file path="src/components/Sidebar.tsx">
 // src/components/Sidebar.tsx
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, LogOut, X, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
@@ -1154,6 +1894,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Rekap Absensi', path: '/attendance/recap', icon: ClipboardList },
+    { name: 'Karyawan', path: '/users', icon: Users },
   ];
 
   return (
@@ -1226,6 +1967,7 @@ export default Sidebar;
 </file>
 
 <file path="src/pages/Attendance/AttendanceRecap.tsx">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import jsPDF from 'jspdf';
@@ -1563,320 +2305,6 @@ const AttendanceRecap = () => {
 };
 
 export default AttendanceRecap;
-</file>
-
-<file path="src/components/Navbar.tsx">
-// src/components/Navbar.tsx
-import { useLocation } from 'react-router-dom';
-import { Menu } from 'lucide-react';
-
-interface NavbarProps {
-  onMenuToggle?: () => void;
-}
-
-const Navbar = ({ onMenuToggle }: NavbarProps) => {
-  const location = useLocation();
-
-  const getPageTitle = () => {
-    if (location.pathname === '/') return 'Dashboard';
-    if (location.pathname.includes('/attendance/recap')) return 'Rekap Absensi';
-    return 'Bumantara ERP';
-  };
-
-  return (
-    <header className="h-[70px] sm:h-[76px] px-4 sm:px-8 flex items-center justify-between bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm/50 transition-all">
-      <div className="flex items-center gap-3 sm:gap-4">
-        {/* Tombol Hamburger untuk Mobile */}
-        <button
-          onClick={onMenuToggle}
-          className="p-2 -ml-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-600 rounded-xl md:hidden transition-colors cursor-pointer"
-          aria-label="Toggle Menu"
-        >
-          <Menu size={24} strokeWidth={2.5} />
-        </button>
-        <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight line-clamp-1">
-          {getPageTitle()}
-        </h1>
-      </div>
-    </header>
-  );
-};
-
-export default Navbar;
-</file>
-
-<file path="src/components/shared/DataTable.tsx">
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, FileX2, ChevronRight, ChevronDown, ChevronLeft } from 'lucide-react';
-
-interface Column {
-  header: string;
-  accessor: string;
-  render?: (value: any, row: any) => React.ReactNode;
-}
-
-interface DataTableProps {
-  title: string;
-  columns: Column[];
-  data: any[];
-  onAdd?: () => void;
-  onEdit?: (item: any) => void;
-  onDelete?: (item: any) => void;
-  expandedRowRender?: (row: any) => React.ReactNode;
-  serverSide?: boolean;
-  searchTerm?: string;
-  onSearchChange?: (val: string) => void;
-
-  // Pagination Offset (Lama)
-  page?: number;
-  totalPages?: number;
-  onPageChange?: (page: number) => void;
-
-  // Pagination Cursor (Baru)
-  hasNextPage?: boolean;
-  hasPrevPage?: boolean;
-  onNextPage?: () => void;
-  onPrevPage?: () => void;
-}
-
-const DataTable = ({
-  title, columns, data, onAdd, onEdit, onDelete, expandedRowRender,
-  serverSide = false, searchTerm = '', onSearchChange,
-  page = 1, totalPages = 1, onPageChange,
-  hasNextPage, hasPrevPage, onNextPage, onPrevPage
-}: DataTableProps) => {
-
-  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
-  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
-
-  useEffect(() => {
-    if (serverSide && onSearchChange) {
-      const timeoutId = setTimeout(() => {
-        if (localSearchTerm !== searchTerm) {
-          onSearchChange(localSearchTerm);
-        }
-      }, 500);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [localSearchTerm, serverSide, onSearchChange, searchTerm]);
-
-  const toggleRow = (rowIndex: number) => {
-    setExpandedRows((prev) => ({ ...prev, [rowIndex]: !prev[rowIndex] }));
-  };
-
-  const filteredData = useMemo(() => {
-    if (serverSide) return data;
-    if (!localSearchTerm) return data;
-
-    const lowercasedTerm = localSearchTerm.toLowerCase();
-    return data.filter((row) => {
-      return columns.some((col) => {
-        const value = row[col.accessor];
-        if (value == null) return false;
-        return String(value).toLowerCase().includes(lowercasedTerm);
-      });
-    });
-  }, [data, localSearchTerm, columns, serverSide]);
-
-  const totalCols = columns.length + (expandedRowRender ? 1 : 0) + (onEdit || onDelete ? 1 : 0);
-
-  const getPageNumbers = () => {
-    const delta = 1;
-    const range = [];
-    for (let i = Math.max(2, page - delta); i <= Math.min(totalPages - 1, page + delta); i++) {
-      range.push(i);
-    }
-    if (page - delta > 2) range.unshift("...");
-    if (page + delta < totalPages - 1) range.push("...");
-    range.unshift(1);
-    if (totalPages > 1) range.push(totalPages);
-    return range;
-  };
-
-  return (
-    <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden flex flex-col transition-all duration-300">
-
-      {/* Header Tabel */}
-      <div className="p-6 md:px-8 md:py-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 border-b border-slate-100">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h2>
-            {!serverSide && (
-              <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-slate-200/60">
-                {filteredData.length} Data
-              </span>
-            )}
-          </div>
-          <p className="text-[13px] text-slate-500 font-medium">Kelola dan pantau informasi operasional secara real-time.</p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-          <div className="relative w-full sm:w-64 group">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
-            <input
-              type="text"
-              placeholder="Cari data..."
-              value={localSearchTerm}
-              onChange={(e) => setLocalSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-500 focus:bg-white transition-all text-slate-800 placeholder:text-slate-400"
-            />
-          </div>
-
-          {onAdd && (
-            <button
-              onClick={onAdd}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 hover:shadow-lg transition-all duration-300 font-bold text-[13px] active:scale-95 cursor-pointer"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-              Tambah Data
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full text-sm text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50/50 text-slate-500 text-[11px] uppercase font-bold tracking-wider border-b border-slate-200/60">
-              {expandedRowRender && <th className="px-4 py-4 w-10 text-center"></th>}
-              {columns.map((col, index) => (
-                <th key={index} className="px-6 py-4 whitespace-nowrap">
-                  {col.header}
-                </th>
-              ))}
-              {(onEdit || onDelete) && (
-                <th className="px-6 py-4 text-center whitespace-nowrap w-24">Aksi</th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredData.length > 0 ? (
-              filteredData.map((row, rowIndex) => {
-                const isExpanded = !!expandedRows[rowIndex];
-                return (
-                  <React.Fragment key={rowIndex}>
-                    <tr
-                      onClick={() => {
-                        if (expandedRowRender) toggleRow(rowIndex);
-                      }}
-                      className={`transition-colors duration-200 group ${expandedRowRender ? 'cursor-pointer hover:bg-slate-50/80' : 'hover:bg-slate-50/50'} ${isExpanded ? 'bg-slate-50/80' : ''}`}
-                    >
-                      {expandedRowRender && (
-                        <td className="px-4 py-4 text-center text-slate-400 group-hover:text-slate-600 transition-colors">
-                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                        </td>
-                      )}
-                      {columns.map((col, colIndex) => (
-                        <td key={colIndex} className="px-6 py-4 text-slate-700 whitespace-nowrap font-medium">
-                          {col.render ? col.render(row[col.accessor], row) : row[col.accessor]}
-                        </td>
-                      ))}
-                      {(onEdit || onDelete) && (
-                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            {onEdit && (
-                              <button onClick={() => onEdit(row)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer">
-                                <Edit2 size={16} />
-                              </button>
-                            )}
-                            {onDelete && (
-                              <button onClick={() => onDelete(row)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer">
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                    {isExpanded && expandedRowRender && (
-                      <tr className="bg-slate-50/30">
-                        <td colSpan={totalCols} className="px-6 py-6 border-b border-slate-100">
-                          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                            {expandedRowRender(row)}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={totalCols} className="px-6 py-24 text-center">
-                  <div className="flex flex-col items-center max-w-sm mx-auto">
-                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
-                      <FileX2 size={28} className="text-slate-400" />
-                    </div>
-                    <h3 className="text-slate-800 font-bold mb-1">Data tidak ditemukan</h3>
-                    <p className="text-slate-500 text-[13px] font-medium leading-relaxed">
-                      Coba sesuaikan filter atau kata kunci pencarian Anda untuk menemukan data.
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination Dinamis (Offset atau Cursor) */}
-      {serverSide && (totalPages > 1 || hasNextPage !== undefined) && (
-        <div className="p-5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
-          <span className="text-[13px] font-medium text-slate-500">
-            {hasNextPage !== undefined ? (
-              "Navigasi Data Halaman"
-            ) : (
-              <>Halaman <strong className="text-slate-900">{page}</strong> dari <strong className="text-slate-900">{totalPages}</strong></>
-            )}
-          </span>
-
-          <div className="flex items-center gap-1.5">
-            {/* Prev Button */}
-            <button
-              onClick={() => onPrevPage ? onPrevPage() : onPageChange?.(page - 1)}
-              disabled={onPrevPage ? !hasPrevPage : page === 1}
-              className="px-3 py-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200 flex items-center gap-1.5"
-            >
-              <ChevronLeft size={18} />
-              {hasNextPage !== undefined && <span className="text-sm font-semibold">Prev</span>}
-            </button>
-
-            {/* Offset Pagination Numbers (Disembunyikan jika mode Cursor aktif) */}
-            {hasNextPage === undefined && getPageNumbers().map((num, idx) => (
-              num === "..." ? (
-                <span key={idx} className="px-2 text-slate-400 font-bold tracking-widest">...</span>
-              ) : (
-                <button
-                  key={idx}
-                  onClick={() => onPageChange?.(num as number)}
-                  className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-[13px] font-bold transition-all cursor-pointer border ${page === num
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-200 hover:text-slate-900'
-                    }`}
-                >
-                  {num}
-                </button>
-              )
-            ))}
-
-            {/* Next Button */}
-            <button
-              onClick={() => onNextPage ? onNextPage() : onPageChange?.(page + 1)}
-              disabled={onNextPage ? !hasNextPage : page === totalPages}
-              className="px-3 py-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-slate-200 flex items-center gap-1.5"
-            >
-              {hasNextPage !== undefined && <span className="text-sm font-semibold">Next</span>}
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default DataTable;
 </file>
 
 <file path="src/pages/Dashboard.tsx">

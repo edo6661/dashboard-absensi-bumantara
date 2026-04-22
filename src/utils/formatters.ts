@@ -11,7 +11,6 @@ export const formatRupiah = (angka: string | number): string => {
     maximumFractionDigits: 0,
   }).format(numberValue);
 };
-
 export const formatDate = (dateString: string): string => {
   if (!dateString) return "-";
 
@@ -22,5 +21,7 @@ export const formatDate = (dateString: string): string => {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 };

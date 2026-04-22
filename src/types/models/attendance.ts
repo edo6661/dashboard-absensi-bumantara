@@ -7,6 +7,7 @@ export interface Attendance {
   recordedByRole: string;
   isSelfAttendance: boolean;
   recordedAt: string;
+  userPerusahaanNama?: string | null;
   confidence: number | null;
   capturedImageUrl: string | null;
   type: "IN" | "OUT";
