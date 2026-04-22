@@ -6,17 +6,13 @@ import {
   Briefcase, Clock, ArrowRightLeft, CalendarDays, PieChart as PieChartIcon
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts';
-
 import { attendanceService } from '../services/attendance.service';
 import { userService } from '../services/user.service';
 import type { Attendance } from '../types/models/attendance';
 import { formatDate } from '../utils/formatters';
-
 type TimeRange = 'today' | '7d' | '30d' | '3m' | '1y' | 'all';
-
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('today');
-
   const dateParams = useMemo(() => {
     const today = new Date();
     const endDate = today.toISOString().split('T')[0];
@@ -42,8 +38,6 @@ const Dashboard = () => {
     }
     return { startDate, endDate };
   }, [timeRange]);
-
-
   const { data: attendanceData, isLoading: isLoadingAttendance } = useQuery({
     queryKey: ['dashboard-attendance', dateParams],
     queryFn: async () => {
@@ -56,8 +50,6 @@ const Dashboard = () => {
       return res.items;
     }
   });
-
-
   const { data: allUsersData, isLoading: isLoadingUsers } = useQuery({
     queryKey: ['dashboard-all-users'],
     queryFn: async () => {
@@ -65,16 +57,11 @@ const Dashboard = () => {
       return res.items;
     }
   });
-
   const isLoading = isLoadingAttendance || isLoadingUsers;
   const allAttendances = attendanceData || [];
   const attendancesIn = allAttendances.filter(a => a.type === 'IN');
-
-
   const uniqueUsersPresent = new Set(attendancesIn.map(a => a.userNik || a.userName)).size;
   const totalOut = allAttendances.filter(a => a.type === 'OUT').length;
-
-
   const projectSummary = attendancesIn.reduce((acc: Record<string, Set<string>>, curr: Attendance) => {
     const projectName = curr.projectName || 'Pusat / Tanpa Proyek';
     const userIdentifier = curr.userNik || curr.userName;
@@ -82,12 +69,9 @@ const Dashboard = () => {
     acc[projectName].add(userIdentifier);
     return acc;
   }, {});
-
   const projectSummaryArray = Object.entries(projectSummary)
     .map(([name, uniqueUsersSet]) => ({ name, count: uniqueUsersSet.size }))
     .sort((a, b) => b.count - a.count);
-
-
   const roleSummary = attendancesIn.reduce((acc: Record<string, Set<string>>, curr: Attendance) => {
     const roleName = curr.userRole || 'Tidak Diketahui';
     const userIdentifier = curr.userNik || curr.userName;
@@ -95,29 +79,19 @@ const Dashboard = () => {
     acc[roleName].add(userIdentifier);
     return acc;
   }, {});
-
   const roleSummaryArray = Object.entries(roleSummary)
     .map(([name, uniqueUsersSet]) => ({ name, count: uniqueUsersSet.size }))
     .sort((a, b) => b.count - a.count);
-
-
   const chartData = useMemo(() => {
     if (!allUsersData) return [];
-
-
-
     const targetRole = 'KARYAWAN';
     const validUsers = allUsersData.filter(user => user.role === targetRole);
-
     const baselineCompany = validUsers.reduce((acc: Record<string, number>, user) => {
       const company = user.perusahaanNama || 'Pusat / Internal';
       acc[company] = (acc[company] || 0) + 1;
       return acc;
     }, {});
-
-
     const inRecords = (attendanceData || []).filter(a => a.type === 'IN' && a.userRole === targetRole);
-
     const attendingCompany = inRecords.reduce((acc: Record<string, Set<string>>, curr) => {
       const company = curr.userPerusahaanNama || 'Pusat / Internal';
       const userIdentifier = curr.userNik || curr.userName;
@@ -125,16 +99,11 @@ const Dashboard = () => {
       acc[company].add(userIdentifier);
       return acc;
     }, {});
-
-
     return Object.keys(baselineCompany).map(company => {
       const totalKaryawan = baselineCompany[company] || 0;
       const totalHadir = attendingCompany[company]?.size || 0;
-
-
       const validTotalKaryawan = Math.max(totalKaryawan, totalHadir);
       const percentage = validTotalKaryawan > 0 ? Math.round((totalHadir / validTotalKaryawan) * 100) : 0;
-
       return {
         name: company,
         PersentaseHadir: percentage,
@@ -153,9 +122,6 @@ const Dashboard = () => {
     { value: '1y', label: '1 Tahun' },
     { value: 'all', label: 'Semua' },
   ];
-
-
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 xl:gap-6">
@@ -184,7 +150,6 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-
       {isLoading ? (
         <div className="flex flex-col items-center justify-center h-[40vh] text-slate-400 gap-3 bg-white/50 rounded-[20px] border border-dashed border-slate-200">
           <Loader2 size={28} className="animate-spin text-indigo-600" />
@@ -221,7 +186,6 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
               <PieChartIcon size={18} className="text-indigo-600" />
@@ -247,10 +211,8 @@ const Dashboard = () => {
               )}
             </div>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-
               <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
                   <MapPin size={18} className="text-indigo-600" />
@@ -274,7 +236,6 @@ const Dashboard = () => {
                   )}
                 </div>
               </div>
-
               <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
                   <Briefcase size={18} className="text-indigo-600" />
@@ -295,9 +256,7 @@ const Dashboard = () => {
                   )}
                 </div>
               </div>
-
             </div>
-
             <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
               <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
                 <Clock size={18} className="text-indigo-600" />
@@ -339,7 +298,6 @@ const Dashboard = () => {
     </div>
   );
 };
-
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -359,5 +317,4 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   }
   return null;
 };
-
 export default Dashboard;

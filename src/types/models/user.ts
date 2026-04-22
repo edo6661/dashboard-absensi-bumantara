@@ -22,6 +22,7 @@ export interface UserFilterParams {
   role?: string;
   status?: "TETAP" | "TIDAK_TETAP" | "";
   orderBy?: string;
+  perusahaanId?: string;
 }
 
 export interface LoginData {
