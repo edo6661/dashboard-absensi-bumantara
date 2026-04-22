@@ -10,9 +10,33 @@ import { attendanceService } from '../services/attendance.service';
 import { userService } from '../services/user.service';
 import type { Attendance } from '../types/models/attendance';
 import { formatDate } from '../utils/formatters';
+
 type TimeRange = 'today' | '7d' | '30d' | '3m' | '1y' | 'all';
+
+// Custom Tooltip diletakkan di luar komponen utama (Best Practice)
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white p-4 rounded-xl shadow-xl border border-slate-100 z-50 relative">
+        <p className="font-bold text-slate-800 mb-2">{label}</p>
+        <div className="space-y-1 text-sm">
+          <p className="text-emerald-600 font-semibold">
+            Tingkat Kehadiran: {data.PersentaseHadir}%
+          </p>
+          <p className="text-slate-500 font-medium text-[13px]">
+            {data.totalHadir} hadir dari total {data.totalKaryawan} karyawan
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('today');
+
   const dateParams = useMemo(() => {
     const today = new Date();
     const endDate = today.toISOString().split('T')[0];
@@ -38,6 +62,7 @@ const Dashboard = () => {
     }
     return { startDate, endDate };
   }, [timeRange]);
+
   const { data: attendanceData, isLoading: isLoadingAttendance } = useQuery({
     queryKey: ['dashboard-attendance', dateParams],
     queryFn: async () => {
@@ -50,6 +75,7 @@ const Dashboard = () => {
       return res.items;
     }
   });
+
   const { data: allUsersData, isLoading: isLoadingUsers } = useQuery({
     queryKey: ['dashboard-all-users'],
     queryFn: async () => {
@@ -57,11 +83,13 @@ const Dashboard = () => {
       return res.items;
     }
   });
+
   const isLoading = isLoadingAttendance || isLoadingUsers;
   const allAttendances = attendanceData || [];
   const attendancesIn = allAttendances.filter(a => a.type === 'IN');
   const uniqueUsersPresent = new Set(attendancesIn.map(a => a.userNik || a.userName)).size;
   const totalOut = allAttendances.filter(a => a.type === 'OUT').length;
+
   const projectSummary = attendancesIn.reduce((acc: Record<string, Set<string>>, curr: Attendance) => {
     const projectName = curr.projectName || 'Pusat / Tanpa Proyek';
     const userIdentifier = curr.userNik || curr.userName;
@@ -69,9 +97,11 @@ const Dashboard = () => {
     acc[projectName].add(userIdentifier);
     return acc;
   }, {});
+
   const projectSummaryArray = Object.entries(projectSummary)
     .map(([name, uniqueUsersSet]) => ({ name, count: uniqueUsersSet.size }))
     .sort((a, b) => b.count - a.count);
+
   const roleSummary = attendancesIn.reduce((acc: Record<string, Set<string>>, curr: Attendance) => {
     const roleName = curr.userRole || 'Tidak Diketahui';
     const userIdentifier = curr.userNik || curr.userName;
@@ -79,22 +109,28 @@ const Dashboard = () => {
     acc[roleName].add(userIdentifier);
     return acc;
   }, {});
+
   const roleSummaryArray = Object.entries(roleSummary)
     .map(([name, uniqueUsersSet]) => ({ name, count: uniqueUsersSet.size }))
     .sort((a, b) => b.count - a.count);
+
   const chartData = useMemo(() => {
     if (!allUsersData || !attendanceData) return [];
     const targetRole = 'KARYAWAN';
     const validUsers = allUsersData.filter(user => user.role === targetRole);
+
     const userCompanyMap = new Map<string, string>();
     const baselineCompany: Record<string, number> = {};
+
     validUsers.forEach(user => {
       const userIdentifier = user.nik || user.name;
       const company = user.perusahaanNama || 'Pusat / Internal';
       userCompanyMap.set(userIdentifier, company);
       baselineCompany[company] = (baselineCompany[company] || 0) + 1;
     });
+
     const inRecords = attendanceData.filter(a => a.type === 'IN' && a.userRole === targetRole);
+
     const attendingCompany = inRecords.reduce((acc: Record<string, Set<string>>, curr) => {
       const userIdentifier = curr.userNik || curr.userName;
       const company = userCompanyMap.get(userIdentifier);
@@ -104,6 +140,7 @@ const Dashboard = () => {
       }
       return acc;
     }, {});
+
     return Object.keys(baselineCompany).map(company => {
       const totalKaryawan = baselineCompany[company] || 0;
       const totalHadir = attendingCompany[company]?.size || 0;
@@ -118,7 +155,9 @@ const Dashboard = () => {
       };
     }).sort((a, b) => b.PersentaseHadir - a.PersentaseHadir);
   }, [allUsersData, attendanceData]);
+
   const recentActivities = allAttendances.slice(0, 5);
+
   const filterOptions: { value: TimeRange; label: string }[] = [
     { value: 'today', label: 'Hari Ini' },
     { value: '7d', label: '7 Hari' },
@@ -127,6 +166,7 @@ const Dashboard = () => {
     { value: '1y', label: '1 Tahun' },
     { value: 'all', label: 'Semua' },
   ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 xl:gap-6">
@@ -155,6 +195,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
       {isLoading ? (
         <div className="flex flex-col items-center justify-center h-[40vh] text-slate-400 gap-3 bg-white/50 rounded-[20px] border border-dashed border-slate-200">
           <Loader2 size={28} className="animate-spin text-indigo-600" />
@@ -191,31 +232,35 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
+
           <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
               <PieChartIcon size={18} className="text-indigo-600" />
               <h3 className="text-[15px] font-bold text-slate-800">Tingkat Kehadiran Karyawan per Perusahaan (%)</h3>
             </div>
-            <div className="p-6 h-[350px] w-full">
+            <div className="p-6 w-full overflow-x-auto custom-scrollbar">
               {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                    <XAxis type="number" domain={[0, 100]} hide />
-                    <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                    <RechartsTooltip cursor={{ fill: '#f8fafc' }} content={<CustomTooltip />} />
-                    <Bar dataKey="PersentaseHadir" radius={[0, 6, 6, 0]} barSize={24}>
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.PersentaseHadir >= 80 ? '#10b981' : entry.PersentaseHadir >= 50 ? '#f59e0b' : '#ef4444'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <div style={{ height: Math.max(350, chartData.length * 45), minWidth: '600px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                      <XAxis type="number" domain={[0, 100]} hide />
+                      <YAxis dataKey="name" type="category" width={220} tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                      <RechartsTooltip cursor={{ fill: '#f8fafc' }} content={<CustomTooltip />} />
+                      <Bar dataKey="PersentaseHadir" radius={[0, 6, 6, 0]} barSize={18}>
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.PersentaseHadir >= 80 ? '#10b981' : entry.PersentaseHadir >= 50 ? '#f59e0b' : '#ef4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm font-medium">Belum ada data absensi untuk ditampilkan.</div>
+                <div className="w-full h-[350px] flex items-center justify-center text-slate-400 text-sm font-medium">Belum ada data absensi untuk ditampilkan.</div>
               )}
             </div>
           </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden">
@@ -262,6 +307,7 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
+
             <div className="bg-white rounded-[20px] shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
               <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
                 <Clock size={18} className="text-indigo-600" />
@@ -292,34 +338,17 @@ const Dashboard = () => {
                 )}
               </div>
               <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-                <a href="/attendance/recap" className="text-[12px] font-bold text-indigo-600 uppercase tracking-widest flex items-center justify-center gap-2">
+                <a href="/attendance/recap" className="text-[12px] font-bold text-indigo-600 uppercase tracking-widest flex items-center justify-center gap-2 hover:text-indigo-700">
                   Selengkapnya <ArrowRight size={14} />
                 </a>
               </div>
             </div>
+
           </div>
         </>
       )}
     </div>
   );
 };
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-white p-4 rounded-xl shadow-xl border border-slate-100">
-        <p className="font-bold text-slate-800 mb-2">{label}</p>
-        <div className="space-y-1 text-sm">
-          <p className="text-emerald-600 font-semibold">
-            Tingkat Kehadiran: {data.PersentaseHadir}%
-          </p>
-          <p className="text-slate-500 font-medium text-[13px]">
-            {data.totalHadir} hadir dari total {data.totalKaryawan} karyawan
-          </p>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
+
 export default Dashboard;
