@@ -11,7 +11,7 @@ import DataTable from '../../components/shared/DataTable';
 import Select from '../../components/shared/Select';
 import Input from '../../components/shared/Input';
 import Modal from '../../components/shared/Modal';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, getDatesInRange } from '../../utils/formatters';
 import type { Attendance, AttendanceHistoryParams } from '../../types/models/attendance';
 import { attendanceService } from '../../services/attendance.service';
 
@@ -60,41 +60,101 @@ const AttendanceRecap = () => {
       setFilters(prev => ({ ...prev, cursor: prevCursor === '' ? undefined : prevCursor }));
     }
   };
-
   const handleExportExcel = async () => {
     try {
-      // Hilangkan cursor agar backend fetch semua data dari awal tanpa offset cursor
-      const exportParams = { ...filters, limit: 10000, cursor: undefined };
+      if (!filters.startDate || !filters.endDate) {
+        alert("Tanggal mulai dan selesai harus dipilih.");
+        return;
+      }
 
+      // 1. Fetch semua data sesuai filter yang aktif (Bisa per Proyek/Perusahaan/Search)
+      const exportParams = { ...filters, limit: 10000, cursor: undefined };
       const response = await attendanceService.getHistory(exportParams);
       const allItems: Attendance[] = response.items;
 
       if (!allItems.length) {
-        alert("Tidak ada data untuk di-export");
+        alert("Tidak ada data absensi untuk diexport pada filter ini.");
         return;
       }
 
-      const headers = ['Nama', 'NIK', 'Tipe', 'Waktu', 'Proyek', 'Lokasi'];
-      const rows = allItems.map(item => [
-        `"${item.userName}"`,
-        `="${item.userNik || '-'}"`,
-        `"${item.type === 'IN' ? 'MASUK' : 'KELUAR'}"`,
-        `"${formatDate(item.recordedAt)}"`,
-        `"${item.projectName || '-'}"`,
-        `"${item.latitude || ''}, ${item.longitude || ''}"`
-      ].join(','));
+      // 2. Generate semua tanggal dalam rentang filter
+      const dateRange = getDatesInRange(filters.startDate, filters.endDate);
 
+      // 3. Kelompokkan data per Karyawan
+      interface UserRecap {
+        name: string;
+        nik: string;
+        perusahaan: string;
+        proyek: string;
+        attendanceMap: Record<string, boolean>; // Menyimpan tanggal -> true (Hadir)
+      }
+
+      const groupedData = new Map<string, UserRecap>();
+
+      allItems.forEach((item) => {
+        // Gunakan NIK sebagai key utama, jika tidak ada gunakan Nama
+        const userKey = item.userNik || item.userName;
+        const dateKey = new Date(item.recordedAt).toISOString().split('T')[0];
+
+        if (!groupedData.has(userKey)) {
+          groupedData.set(userKey, {
+            name: item.userName,
+            nik: item.userNik || '-',
+            perusahaan: item.userPerusahaanNama || 'Pusat / Internal',
+            proyek: item.projectName || '-',
+            attendanceMap: {},
+          });
+        }
+
+        // Tandai hadir di tanggal tersebut
+        const user = groupedData.get(userKey);
+        if (user) {
+          user.attendanceMap[dateKey] = true;
+          // Update proyek terakhir jika ada (mengatasi jika dia pindah proyek)
+          if (item.projectName) user.proyek = item.projectName;
+        }
+      });
+
+      // 4. Bangun Header CSV
+      const headers = ['Nama', 'NIK', 'Perusahaan', 'Proyek Terakhir', ...dateRange];
+
+      // 5. Bangun Baris Data (Rows)
+      const rows = Array.from(groupedData.values()).map((user) => {
+        const rowData: string[] = [
+          `"${user.name}"`,
+          `="${user.nik}"`, // Pake ="NIK" agar Excel tidak memotong angka 0 di depan
+          `"${user.perusahaan}"`,
+          `"${user.proyek}"`,
+        ];
+
+        // Cek kehadiran setiap hari
+        dateRange.forEach((date) => {
+          const isPresent = user.attendanceMap[date];
+          if (isPresent) {
+            rowData.push(`"✅ HADIR"`);
+          } else {
+            // Indikator visual mencolok untuk hari yang "Bolong"
+            rowData.push(`"❌ BOLONG"`);
+          }
+        });
+
+        return rowData.join(',');
+      });
+
+      // 6. Buat file CSV dan Trigger Download
       const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Rekap_Absensi_${filters.startDate}.csv`;
+      link.download = `Matriks_Absensi_${filters.startDate}_sd_${filters.endDate}.csv`;
       link.click();
+
+      URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Gagal export Excel", error);
-      alert("Terjadi kesalahan saat mengunduh data.");
+      console.error("Gagal export Excel Matriks", error);
+      alert("Terjadi kesalahan saat menyusun matriks absensi.");
     }
   };
 
