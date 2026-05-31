@@ -87,6 +87,8 @@ const AttendanceRecap = () => {
         perusahaan: string;
         proyek: string;
         attendanceMap: Record<string, boolean>; // Menyimpan tanggal -> true (Hadir)
+        totalMasuk: number;
+        totalKeluar: number;
       }
 
       const groupedData = new Map<string, UserRecap>();
@@ -103,20 +105,24 @@ const AttendanceRecap = () => {
             perusahaan: item.userPerusahaanNama || 'Pusat / Internal',
             proyek: item.projectName || '-',
             attendanceMap: {},
+            totalMasuk: 0,
+            totalKeluar: 0,
           });
         }
 
-        // Tandai hadir di tanggal tersebut
+        // Tandai hadir di tanggal tersebut & hitung total masuk/keluar
         const user = groupedData.get(userKey);
         if (user) {
           user.attendanceMap[dateKey] = true;
+          if (item.type === 'IN') user.totalMasuk += 1;
+          else if (item.type === 'OUT') user.totalKeluar += 1;
           // Update proyek terakhir jika ada (mengatasi jika dia pindah proyek)
           if (item.projectName) user.proyek = item.projectName;
         }
       });
 
       // 4. Bangun Header CSV
-      const headers = ['Nama', 'NIK', 'Perusahaan', 'Proyek Terakhir', ...dateRange];
+      const headers = ['Nama', 'NIK', 'Perusahaan', 'Proyek Terakhir', ...dateRange, 'Total Absen Masuk', 'Total Absen Keluar'];
 
       // 5. Bangun Baris Data (Rows)
       const rows = Array.from(groupedData.values()).map((user) => {
@@ -137,6 +143,8 @@ const AttendanceRecap = () => {
             rowData.push(`"❌ BOLONG"`);
           }
         });
+
+        rowData.push(String(user.totalMasuk), String(user.totalKeluar));
 
         return rowData.join(',');
       });
