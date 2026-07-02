@@ -17,15 +17,31 @@ import { attendanceService } from '../../services/attendance.service';
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
+interface DayAttendance {
+  in: string | null;
+  out: string | null;
+}
+
 interface UserRecap {
   name: string;
   nik: string;
   perusahaan: string;
   proyek: string;
-  attendanceMap: Record<string, { in: boolean; out: boolean }>;
+  attendanceMap: Record<string, DayAttendance>;
   totalMasuk: number;
   totalKeluar: number;
 }
+
+const formatTimeOnly = (dateString: string): string => {
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '-';
+
+  return new Intl.DateTimeFormat('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+};
 
 const buildAttendanceMatrix = (
   allItems: Attendance[],
@@ -53,13 +69,15 @@ const buildAttendanceMatrix = (
 
     const user = groupedData.get(userKey)!;
     if (!user.attendanceMap[dateKey]) {
-      user.attendanceMap[dateKey] = { in: false, out: false };
+      user.attendanceMap[dateKey] = { in: null, out: null };
     }
+
+    const time = formatTimeOnly(item.recordedAt);
     if (item.type === 'IN') {
-      user.attendanceMap[dateKey].in = true;
+      user.attendanceMap[dateKey].in = time;
       user.totalMasuk += 1;
     } else if (item.type === 'OUT') {
-      user.attendanceMap[dateKey].out = true;
+      user.attendanceMap[dateKey].out = time;
       user.totalKeluar += 1;
     }
     if (item.projectName) user.proyek = item.projectName;
@@ -73,15 +91,15 @@ const formatShortDate = (dateStr: string) => {
   return `${day}/${month}/${year.slice(2)}`;
 };
 
-const getDayStatus = (present: boolean) => (present ? 'HADIR' : 'BOLONG');
+const formatDayCell = (time: string | null | undefined) => time ?? 'BOLONG';
 
 const buildDailyAttendanceRows = (dateRange: string[], user: UserRecap) =>
   dateRange.map((date) => {
     const day = user.attendanceMap[date];
     return [
       formatShortDate(date),
-      getDayStatus(day?.in ?? false),
-      getDayStatus(day?.out ?? false),
+      formatDayCell(day?.in),
+      formatDayCell(day?.out),
     ];
   });
 
@@ -275,11 +293,11 @@ const AttendanceRecap = () => {
           didParseCell: (data) => {
             if (data.section === 'body' && (data.column.index === 1 || data.column.index === 2)) {
               const text = data.cell.raw as string;
-              if (text === 'HADIR') {
-                data.cell.styles.textColor = [16, 185, 129];
-                data.cell.styles.fontStyle = 'bold';
-              } else if (text === 'BOLONG') {
+              if (text === 'BOLONG') {
                 data.cell.styles.textColor = [239, 68, 68];
+                data.cell.styles.fontStyle = 'bold';
+              } else {
+                data.cell.styles.textColor = [16, 185, 129];
                 data.cell.styles.fontStyle = 'bold';
               }
             }
