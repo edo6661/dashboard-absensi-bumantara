@@ -22,7 +22,7 @@ interface UserRecap {
   nik: string;
   perusahaan: string;
   proyek: string;
-  attendanceMap: Record<string, boolean>;
+  attendanceMap: Record<string, { in: boolean; out: boolean }>;
   totalMasuk: number;
   totalKeluar: number;
 }
@@ -52,9 +52,16 @@ const buildAttendanceMatrix = (
     }
 
     const user = groupedData.get(userKey)!;
-    user.attendanceMap[dateKey] = true;
-    if (item.type === 'IN') user.totalMasuk += 1;
-    else if (item.type === 'OUT') user.totalKeluar += 1;
+    if (!user.attendanceMap[dateKey]) {
+      user.attendanceMap[dateKey] = { in: false, out: false };
+    }
+    if (item.type === 'IN') {
+      user.attendanceMap[dateKey].in = true;
+      user.totalMasuk += 1;
+    } else if (item.type === 'OUT') {
+      user.attendanceMap[dateKey].out = true;
+      user.totalKeluar += 1;
+    }
     if (item.projectName) user.proyek = item.projectName;
   });
 
@@ -66,25 +73,17 @@ const formatShortDate = (dateStr: string) => {
   return `${day}/${month}/${year.slice(2)}`;
 };
 
-const buildPairedAttendanceRows = (dateRange: string[], user: UserRecap) => {
-  const half = Math.ceil(dateRange.length / 2);
-  const rows: string[][] = [];
+const getDayStatus = (present: boolean) => (present ? 'HADIR' : 'BOLONG');
 
-  for (let i = 0; i < half; i++) {
-    const date1 = dateRange[i];
-    const status1 = user.attendanceMap[date1] ? 'HADIR' : 'BOLONG';
-    const date2 = dateRange[i + half];
-
-    if (date2) {
-      const status2 = user.attendanceMap[date2] ? 'HADIR' : 'BOLONG';
-      rows.push([formatShortDate(date1), status1, formatShortDate(date2), status2]);
-    } else {
-      rows.push([formatShortDate(date1), status1, '', '']);
-    }
-  }
-
-  return rows;
-};
+const buildDailyAttendanceRows = (dateRange: string[], user: UserRecap) =>
+  dateRange.map((date) => {
+    const day = user.attendanceMap[date];
+    return [
+      formatShortDate(date),
+      getDayStatus(day?.in ?? false),
+      getDayStatus(day?.out ?? false),
+    ];
+  });
 
 const AttendanceRecap = () => {
   const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: async () => (await api.get('/roles')).data.data });
@@ -158,9 +157,10 @@ const AttendanceRecap = () => {
           `"${user.proyek}"`,
         ];
 
-        // Cek kehadiran setiap hari
+        // Cek kehadiran setiap hari (hadir jika ada masuk atau keluar)
         dateRange.forEach((date) => {
-          const isPresent = user.attendanceMap[date];
+          const day = user.attendanceMap[date];
+          const isPresent = day?.in || day?.out;
           if (isPresent) {
             rowData.push(`"✅ HADIR"`);
           } else {
@@ -226,7 +226,7 @@ const AttendanceRecap = () => {
       currentY += 24;
 
       users.forEach((user, index) => {
-        const sectionHeight = 70 + Math.ceil(dateRange.length / 2) * 20;
+        const sectionHeight = 70 + dateRange.length * 18;
         if (currentY + sectionHeight > pageHeight - 40) {
           pdf.addPage();
           currentY = 40;
@@ -256,11 +256,11 @@ const AttendanceRecap = () => {
         pdf.text(`Total Absen Masuk: ${user.totalMasuk}   |   Total Absen Keluar: ${user.totalKeluar}`, marginX, currentY);
         currentY += 14;
 
-        const tableData = buildPairedAttendanceRows(dateRange, user);
+        const tableData = buildDailyAttendanceRows(dateRange, user);
 
         autoTable(pdf, {
           startY: currentY,
-          head: [['Tanggal', 'Kehadiran', 'Tanggal', 'Kehadiran']],
+          head: [['Tanggal', 'Masuk', 'Keluar']],
           body: tableData,
           margin: { left: marginX, right: marginX },
           tableWidth: pdf.internal.pageSize.width - marginX * 2,
@@ -268,13 +268,12 @@ const AttendanceRecap = () => {
           alternateRowStyles: { fillColor: [248, 250, 252] },
           styles: { fontSize: 9, cellPadding: 5, halign: 'center', overflow: 'linebreak' },
           columnStyles: {
-            0: { cellWidth: 90, halign: 'left' },
-            1: { cellWidth: 80 },
-            2: { cellWidth: 90, halign: 'left' },
-            3: { cellWidth: 80 },
+            0: { cellWidth: 120, halign: 'left' },
+            1: { cellWidth: 100 },
+            2: { cellWidth: 100 },
           },
           didParseCell: (data) => {
-            if (data.section === 'body' && (data.column.index === 1 || data.column.index === 3)) {
+            if (data.section === 'body' && (data.column.index === 1 || data.column.index === 2)) {
               const text = data.cell.raw as string;
               if (text === 'HADIR') {
                 data.cell.styles.textColor = [16, 185, 129];
