@@ -62,8 +62,28 @@ const buildAttendanceMatrix = (
 };
 
 const formatShortDate = (dateStr: string) => {
-  const [, month, day] = dateStr.split('-');
-  return `${day}/${month}`;
+  const [year, month, day] = dateStr.split('-');
+  return `${day}/${month}/${year.slice(2)}`;
+};
+
+const buildPairedAttendanceRows = (dateRange: string[], user: UserRecap) => {
+  const half = Math.ceil(dateRange.length / 2);
+  const rows: string[][] = [];
+
+  for (let i = 0; i < half; i++) {
+    const date1 = dateRange[i];
+    const status1 = user.attendanceMap[date1] ? 'HADIR' : 'BOLONG';
+    const date2 = dateRange[i + half];
+
+    if (date2) {
+      const status2 = user.attendanceMap[date2] ? 'HADIR' : 'BOLONG';
+      rows.push([formatShortDate(date1), status1, formatShortDate(date2), status2]);
+    } else {
+      rows.push([formatShortDate(date1), status1, '', '']);
+    }
+  }
+
+  return rows;
 };
 
 const AttendanceRecap = () => {
@@ -189,54 +209,85 @@ const AttendanceRecap = () => {
       }
 
       const { dateRange, users } = buildAttendanceMatrix(allItems, filters.startDate, filters.endDate);
-      const dateColStart = 4;
 
-      const pdf = new jsPDF('l', 'pt', 'a4');
+      const pdf = new jsPDF('p', 'pt', 'a4');
+      const pageHeight = pdf.internal.pageSize.height;
+      const marginX = 40;
+      let currentY = 40;
 
       pdf.setFontSize(16);
-      pdf.text('Matriks Rekap Absensi', 40, 35);
+      pdf.setTextColor(30);
+      pdf.text('Matriks Rekap Absensi', marginX, currentY);
+      currentY += 18;
+
       pdf.setFontSize(10);
       pdf.setTextColor(100);
-      pdf.text(`Periode: ${filters.startDate} s/d ${filters.endDate}`, 40, 50);
+      pdf.text(`Periode: ${filters.startDate} s/d ${filters.endDate}`, marginX, currentY);
+      currentY += 24;
 
-      const dateHeaders = dateRange.map(formatShortDate);
-      const headers = ['Nama', 'NIK', 'Perusahaan', 'Proyek Terakhir', ...dateHeaders, 'Total Absen Masuk', 'Total Absen Keluar'];
+      users.forEach((user, index) => {
+        const sectionHeight = 70 + Math.ceil(dateRange.length / 2) * 20;
+        if (currentY + sectionHeight > pageHeight - 40) {
+          pdf.addPage();
+          currentY = 40;
+        }
 
-      const tableData = users.map((user) => [
-        user.name,
-        user.nik,
-        user.perusahaan,
-        user.proyek,
-        ...dateRange.map((date) => (user.attendanceMap[date] ? 'HADIR' : 'BOLONG')),
-        String(user.totalMasuk),
-        String(user.totalKeluar),
-      ]);
+        if (index > 0) {
+          pdf.setDrawColor(220);
+          pdf.setLineWidth(0.5);
+          pdf.line(marginX, currentY - 10, pdf.internal.pageSize.width - marginX, currentY - 10);
+        }
 
-      autoTable(pdf, {
-        startY: 60,
-        head: [headers],
-        body: tableData,
-        headStyles: { fillColor: [79, 70, 229], fontSize: 7 },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        styles: { fontSize: 7, cellPadding: 3, halign: 'center' },
-        columnStyles: {
-          0: { cellWidth: 90, halign: 'left' },
-          1: { cellWidth: 65, halign: 'left' },
-          2: { cellWidth: 75, halign: 'left' },
-          3: { cellWidth: 75, halign: 'left' },
-        },
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.column.index >= dateColStart && data.column.index < dateColStart + dateRange.length) {
-            const text = data.cell.raw as string;
-            if (text === 'HADIR') {
-              data.cell.styles.textColor = [16, 185, 129];
-              data.cell.styles.fontStyle = 'bold';
-            } else if (text === 'BOLONG') {
-              data.cell.styles.textColor = [239, 68, 68];
-              data.cell.styles.fontStyle = 'bold';
+        pdf.setFontSize(12);
+        pdf.setTextColor(30);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(user.name, marginX, currentY);
+        currentY += 16;
+
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(80);
+        pdf.text(`NIK: ${user.nik}`, marginX, currentY);
+        currentY += 13;
+        pdf.text(`Perusahaan: ${user.perusahaan}`, marginX, currentY);
+        currentY += 13;
+        pdf.text(`Proyek Terakhir: ${user.proyek}`, marginX, currentY);
+        currentY += 13;
+        pdf.text(`Total Absen Masuk: ${user.totalMasuk}   |   Total Absen Keluar: ${user.totalKeluar}`, marginX, currentY);
+        currentY += 14;
+
+        const tableData = buildPairedAttendanceRows(dateRange, user);
+
+        autoTable(pdf, {
+          startY: currentY,
+          head: [['Tanggal', 'Kehadiran', 'Tanggal', 'Kehadiran']],
+          body: tableData,
+          margin: { left: marginX, right: marginX },
+          tableWidth: pdf.internal.pageSize.width - marginX * 2,
+          headStyles: { fillColor: [79, 70, 229], fontSize: 9, halign: 'center' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          styles: { fontSize: 9, cellPadding: 5, halign: 'center', overflow: 'linebreak' },
+          columnStyles: {
+            0: { cellWidth: 90, halign: 'left' },
+            1: { cellWidth: 80 },
+            2: { cellWidth: 90, halign: 'left' },
+            3: { cellWidth: 80 },
+          },
+          didParseCell: (data) => {
+            if (data.section === 'body' && (data.column.index === 1 || data.column.index === 3)) {
+              const text = data.cell.raw as string;
+              if (text === 'HADIR') {
+                data.cell.styles.textColor = [16, 185, 129];
+                data.cell.styles.fontStyle = 'bold';
+              } else if (text === 'BOLONG') {
+                data.cell.styles.textColor = [239, 68, 68];
+                data.cell.styles.fontStyle = 'bold';
+              }
             }
-          }
-        },
+          },
+        });
+
+        currentY = (pdf as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 24;
       });
 
       pdf.save(`Matriks_Absensi_${filters.startDate}_sd_${filters.endDate}.pdf`);
