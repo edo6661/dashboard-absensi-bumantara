@@ -17,6 +17,55 @@ import { attendanceService } from '../../services/attendance.service';
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
+interface UserRecap {
+  name: string;
+  nik: string;
+  perusahaan: string;
+  proyek: string;
+  attendanceMap: Record<string, boolean>;
+  totalMasuk: number;
+  totalKeluar: number;
+}
+
+const buildAttendanceMatrix = (
+  allItems: Attendance[],
+  startDate: string,
+  endDate: string,
+) => {
+  const dateRange = getDatesInRange(startDate, endDate);
+  const groupedData = new Map<string, UserRecap>();
+
+  allItems.forEach((item) => {
+    const userKey = item.userNik || item.userName;
+    const dateKey = new Date(item.recordedAt).toISOString().split('T')[0];
+
+    if (!groupedData.has(userKey)) {
+      groupedData.set(userKey, {
+        name: item.userName,
+        nik: item.userNik || '-',
+        perusahaan: item.userPerusahaanNama || 'Pusat / Internal',
+        proyek: item.projectName || '-',
+        attendanceMap: {},
+        totalMasuk: 0,
+        totalKeluar: 0,
+      });
+    }
+
+    const user = groupedData.get(userKey)!;
+    user.attendanceMap[dateKey] = true;
+    if (item.type === 'IN') user.totalMasuk += 1;
+    else if (item.type === 'OUT') user.totalKeluar += 1;
+    if (item.projectName) user.proyek = item.projectName;
+  });
+
+  return { dateRange, users: Array.from(groupedData.values()) };
+};
+
+const formatShortDate = (dateStr: string) => {
+  const [, month, day] = dateStr.split('-');
+  return `${day}/${month}`;
+};
+
 const AttendanceRecap = () => {
   const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: async () => (await api.get('/roles')).data.data });
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: async () => (await api.get('/projects')).data.data });
@@ -77,55 +126,11 @@ const AttendanceRecap = () => {
         return;
       }
 
-      // 2. Generate semua tanggal dalam rentang filter
-      const dateRange = getDatesInRange(filters.startDate, filters.endDate);
+      const { dateRange, users } = buildAttendanceMatrix(allItems, filters.startDate, filters.endDate);
 
-      // 3. Kelompokkan data per Karyawan
-      interface UserRecap {
-        name: string;
-        nik: string;
-        perusahaan: string;
-        proyek: string;
-        attendanceMap: Record<string, boolean>; // Menyimpan tanggal -> true (Hadir)
-        totalMasuk: number;
-        totalKeluar: number;
-      }
-
-      const groupedData = new Map<string, UserRecap>();
-
-      allItems.forEach((item) => {
-        // Gunakan NIK sebagai key utama, jika tidak ada gunakan Nama
-        const userKey = item.userNik || item.userName;
-        const dateKey = new Date(item.recordedAt).toISOString().split('T')[0];
-
-        if (!groupedData.has(userKey)) {
-          groupedData.set(userKey, {
-            name: item.userName,
-            nik: item.userNik || '-',
-            perusahaan: item.userPerusahaanNama || 'Pusat / Internal',
-            proyek: item.projectName || '-',
-            attendanceMap: {},
-            totalMasuk: 0,
-            totalKeluar: 0,
-          });
-        }
-
-        // Tandai hadir di tanggal tersebut & hitung total masuk/keluar
-        const user = groupedData.get(userKey);
-        if (user) {
-          user.attendanceMap[dateKey] = true;
-          if (item.type === 'IN') user.totalMasuk += 1;
-          else if (item.type === 'OUT') user.totalKeluar += 1;
-          // Update proyek terakhir jika ada (mengatasi jika dia pindah proyek)
-          if (item.projectName) user.proyek = item.projectName;
-        }
-      });
-
-      // 4. Bangun Header CSV
       const headers = ['Nama', 'NIK', 'Perusahaan', 'Proyek Terakhir', ...dateRange, 'Total Absen Masuk', 'Total Absen Keluar'];
 
-      // 5. Bangun Baris Data (Rows)
-      const rows = Array.from(groupedData.values()).map((user) => {
+      const rows = users.map((user) => {
         const rowData: string[] = [
           `"${user.name}"`,
           `="${user.nik}"`, // Pake ="NIK" agar Excel tidak memotong angka 0 di depan
@@ -169,43 +174,72 @@ const AttendanceRecap = () => {
   const handleExportPDF = async () => {
     setIsExportingPDF(true);
     try {
-      const exportParams = { ...filters, limit: 10000, cursor: undefined };
+      if (!filters.startDate || !filters.endDate) {
+        alert("Tanggal mulai dan selesai harus dipilih.");
+        return;
+      }
 
+      const exportParams = { ...filters, limit: 10000, cursor: undefined };
       const response = await attendanceService.getHistory(exportParams);
       const allItems: Attendance[] = response.items;
 
       if (!allItems.length) {
-        alert("Tidak ada data untuk di-export");
-        setIsExportingPDF(false);
+        alert("Tidak ada data absensi untuk diexport pada filter ini.");
         return;
       }
 
-      const pdf = new jsPDF('p', 'pt', 'a4');
+      const { dateRange, users } = buildAttendanceMatrix(allItems, filters.startDate, filters.endDate);
+      const dateColStart = 4;
+
+      const pdf = new jsPDF('l', 'pt', 'a4');
 
       pdf.setFontSize(16);
-      pdf.text('Laporan Rekap Absensi', 40, 40);
+      pdf.text('Matriks Rekap Absensi', 40, 35);
       pdf.setFontSize(10);
       pdf.setTextColor(100);
-      pdf.text(`Periode: ${filters.startDate} s/d ${filters.endDate}`, 40, 55);
+      pdf.text(`Periode: ${filters.startDate} s/d ${filters.endDate}`, 40, 50);
 
-      const tableData = allItems.map(item => [
-        item.userName,
-        item.userNik || '-',
-        item.type === 'IN' ? 'MASUK' : 'KELUAR',
-        formatDate(item.recordedAt),
-        item.projectName || 'Pusat'
+      const dateHeaders = dateRange.map(formatShortDate);
+      const headers = ['Nama', 'NIK', 'Perusahaan', 'Proyek Terakhir', ...dateHeaders, 'Total Absen Masuk', 'Total Absen Keluar'];
+
+      const tableData = users.map((user) => [
+        user.name,
+        user.nik,
+        user.perusahaan,
+        user.proyek,
+        ...dateRange.map((date) => (user.attendanceMap[date] ? 'HADIR' : 'BOLONG')),
+        String(user.totalMasuk),
+        String(user.totalKeluar),
       ]);
 
       autoTable(pdf, {
-        startY: 70,
-        head: [['Nama Pegawai', 'NIK', 'Status', 'Waktu', 'Proyek/Lokasi']],
+        startY: 60,
+        head: [headers],
         body: tableData,
-        headStyles: { fillColor: [79, 70, 229] },
+        headStyles: { fillColor: [79, 70, 229], fontSize: 7 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
-        styles: { fontSize: 9, cellPadding: 6 },
+        styles: { fontSize: 7, cellPadding: 3, halign: 'center' },
+        columnStyles: {
+          0: { cellWidth: 90, halign: 'left' },
+          1: { cellWidth: 65, halign: 'left' },
+          2: { cellWidth: 75, halign: 'left' },
+          3: { cellWidth: 75, halign: 'left' },
+        },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index >= dateColStart && data.column.index < dateColStart + dateRange.length) {
+            const text = data.cell.raw as string;
+            if (text === 'HADIR') {
+              data.cell.styles.textColor = [16, 185, 129];
+              data.cell.styles.fontStyle = 'bold';
+            } else if (text === 'BOLONG') {
+              data.cell.styles.textColor = [239, 68, 68];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
+        },
       });
 
-      pdf.save(`Rekap_Absensi_${filters.startDate}.pdf`);
+      pdf.save(`Matriks_Absensi_${filters.startDate}_sd_${filters.endDate}.pdf`);
     } catch (error) {
       console.error("Gagal export PDF", error);
       alert("Terjadi kesalahan saat men-generate PDF.");
@@ -272,7 +306,7 @@ const AttendanceRecap = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white px-8 py-4 rounded-xl">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">Rekap Absensi</h1>
-          <p className="text-slate-500 text-[14px] font-medium mt-1">Sistem pemantauan kehadiran real-time.</p>
+
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <button onClick={handleExportExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-95">
